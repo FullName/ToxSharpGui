@@ -24,51 +24,36 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 		checkbutton1.Active = state;
 		checkbutton1.Label = state ? "Up" : "Down";
 
-		int friendsonline = 0, friendstotal = 0;
-		if (!store.IterHasChild(_frienditer))
-			return;
-
-		TreeIter iter;
-		store.IterChildren(out iter, _frienditer);
-		do
-		{
-			PersonTreeNode friend = store.GetValue(iter, 0) as PersonTreeNode;
-			if (friend.entryType != PersonTreeNode.EntryType.Friend)
-				break;
-
-			friendstotal++;
-			if (friend.online)
-				friendsonline++;
-		} while (store.IterNext(ref iter));
+		int friendsonline, friendstotal;
+		datastorage.FriendCount(out friendsonline, out friendstotal);
 
 		if (friendstotal > 0)
 			checkbutton1.Label += " | F: " + friendsonline + " on, " + friendstotal + " total";
 	}
 
-	public void ToxFriendRequest(string key, string message)
+	public void ToxFriendAddRequest(ToxSharpGui.Key key, string message)
 	{
-		TextAdd(SourceType.System, 0, "SYSTEM", "Friend request: Message is [" + message + "]\nID: " + key);
-		if (store.IterHasChild(_strangeriter))
+		TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Stranger, key);
+		if (typeid != null)
 		{
-			TreeIter iter;
-			store.IterChildren(out iter, _strangeriter);
-			do
+			StrangerTreeNode strangerexisting = typeid as StrangerTreeNode;
+			if (strangerexisting != null)
 			{
-				PersonTreeNode stranger = store.GetValue(iter, 0) as PersonTreeNode;
-				if (stranger.entryType != PersonTreeNode.EntryType.Stranger)
-					break;
+				strangerexisting.message = message;
+				treeview1.QueueDraw();
 	
-				if (stranger.key == key)
-				{
-					stranger.message = message;
-					treeview1.QueueDraw();
-					return;
-				}
-			} while (store.IterNext(ref iter));
+				TextAdd(SourceType.System, 0, "SYSTEM", "Updated friend request: Message is [" + message + "]\n" +
+														"ID: " + strangerexisting.key.str);
+				return;
+			}
 		}
 
-		store.AppendValues(strangeriter, new PersonTreeNode(key, message));
+		StrangerTreeNode strangernew = new StrangerTreeNode(key, message);
+		store.AppendValues(storeiterators.strangeriter, HolderTreeNodeNew(strangernew));
 		treeview1.ExpandAll();
+
+		TextAdd(SourceType.System, 0, "SYSTEM", "New friend request: Message is [" + message + "]\n" +
+												"ID: " + strangernew.key.str);
 	}
 		
 	protected List<string> FriendPresenceStateToString;
@@ -84,144 +69,104 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 			FriendPresenceStateToString.Add("invalid");
 		}
 		
-		if (!store.IterHasChild(_frienditer))
+		TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
+		if (typeid == null)
 			return;
 
-		TreeIter iter;
-		store.IterChildren(out iter, _frienditer);
-		do
-		{
-			PersonTreeNode friend = store.GetValue(iter, 0) as PersonTreeNode;
-			if (friend.entryType != PersonTreeNode.EntryType.Friend)
-				break;
+		FriendTreeNode friend = typeid as FriendTreeNode;
+		if (friend == null)
+			return;
 
-			if (friend.id == id)
-			{
-				if ((int)state < FriendPresenceStateToString.Capacity)
-					friend.state = FriendPresenceStateToString[(int)state];
-				else
-					friend.state = FriendPresenceStateToString[3];
+		if ((int)state < FriendPresenceStateToString.Capacity)
+			friend.state = FriendPresenceStateToString[(int)state];
+		else
+			friend.state = FriendPresenceStateToString[3];
 
-				treeview1.QueueDraw();
-				return;
-			}
-		} while (store.IterNext(ref iter));
+		treeview1.QueueDraw();
 	}
 
 	public void ToxFriendPresenceState(int id, string state)
 	{
-		if (!store.IterHasChild(_frienditer))
+		TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
+		if (typeid == null)
 			return;
 
-		TreeIter iter;
-		store.IterChildren(out iter, _frienditer);
-		do
-		{
-			PersonTreeNode friend = store.GetValue(iter, 0) as PersonTreeNode;
-			if (friend.entryType != PersonTreeNode.EntryType.Friend)
-				break;
+		FriendTreeNode friend = typeid as FriendTreeNode;
+		if (friend == null)
+			return;
 
-			if (friend.id == id)
-			{
-				friend.state = state;
-				treeview1.QueueDraw();
-				return;
-			}
-		} while (store.IterNext(ref iter));
+		friend.state = state;
+		treeview1.QueueDraw();
 	}
 
 	public void ToxFriendName(int id, string name)
 	{
-		if (!store.IterHasChild(_frienditer))
+		TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
+		if (typeid == null)
 			return;
 
-		TreeIter iter;
-		store.IterChildren(out iter, _frienditer);
-		do
-		{
-			PersonTreeNode friend = store.GetValue(iter, 0) as PersonTreeNode;
-			if (friend.entryType != PersonTreeNode.EntryType.Friend)
-				break;
+		FriendTreeNode friend = typeid as FriendTreeNode;
+		if (friend == null)
+			return;
 
-			if (friend.id == id)
-			{
-				friend.name = name;
-				treeview1.QueueDraw();
-				return;
-			}
-		} while (store.IterNext(ref iter));
+		friend.name = name;
+		treeview1.QueueDraw();
 	}
 
 	public void ToxFriendConnected(int id, bool connected)
 	{
-		if (!store.IterHasChild(_frienditer))
+		TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
+		if (typeid == null)
 			return;
 
-		TreeIter iter;
-		store.IterChildren(out iter, _frienditer);
-		do
-		{
-			PersonTreeNode friend = store.GetValue(iter, 0) as PersonTreeNode;
-			if (friend.entryType != PersonTreeNode.EntryType.Friend)
-				break;
+		FriendTreeNode friend = typeid as FriendTreeNode;
+		if (friend == null)
+			return;
 
-			if (friend.id == id)
-			{
-				friend.online = connected;
-				treeview1.QueueDraw();
-				break;
-			}
-		} while (store.IterNext(ref iter));
+		friend.online = connected;
+		treeview1.QueueDraw();
 
 		ToxConnected(checkbutton1.Active);
 	}
 
-	public void ToxFriendInit(int id, string name, string state, bool online)
+	public void ToxFriendInit(int id, ToxSharpGui.Key key, string name, string state, bool online)
 	{
-		if (store.IterHasChild(_frienditer))
+		TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
+		if (typeid != null)
 		{
-			TreeIter iter;
-			store.IterChildren(out iter, _frienditer);
-			do
+			FriendTreeNode friend = typeid as FriendTreeNode;
+			if (friend != null)
 			{
-				PersonTreeNode friend = store.GetValue(iter, 0) as PersonTreeNode;
-				if (friend.entryType != PersonTreeNode.EntryType.Friend)
-					break;
-	
-				if (friend.id == id)
-				{
-					friend.name = name;
-					friend.state = state;
-					friend.online = online;
+				friend.key = key;
+				friend.name = name;
+				friend.state = state;
+				friend.online = online;
 
-					treeview1.QueueDraw();
-					return;
-				}
-			} while (store.IterNext(ref iter));
+				treeview1.QueueDraw();
+				return;
+			}
 		}
 
-		store.AppendValues(frienditer, new PersonTreeNode(id, name, state, online));
+		store.AppendValues(storeiterators.frienditer, HolderTreeNodeNew(new FriendTreeNode((UInt16)id, key, name, state, online)));
 		treeview1.ExpandAll();
 	}
 
-	public void ToxFriendMessage(int friendId, string message)
+	public void ToxFriendMessage(int id, string message)
 	{
-		if (!store.IterHasChild(_frienditer))
+		TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
+		if (typeid == null)
 			return;
 
-		TreeIter iter;
-		store.IterChildren(out iter, _frienditer);
-		do
-		{
-			PersonTreeNode friend = store.GetValue(iter, 0) as PersonTreeNode;
-			if (friend.entryType != PersonTreeNode.EntryType.Friend)
-				break;
+		FriendTreeNode friend = typeid as FriendTreeNode;
+		if (friend == null)
+			return;
 
-			if (friend.id == friendId)
-			{
-				TextAdd(SourceType.Friend, (UInt16)friendId, friend.name, message);
-				return;
-			}
-		} while (store.IterNext(ref iter));
+		string handle = "[" + friend.id + "] ";
+		if (friend.name.Length > 0)
+			handle += friend.name;
+		else
+			handle += friend.key.str.Substring(0, 8) + "...";
+
+		TextAdd(SourceType.Friend, friend.id, handle, message);
 	}
 }

@@ -72,6 +72,9 @@
     <Compile Include="ToxSharp.cs" />
     <Compile Include="MainWindow_tox.cs" />
     <Compile Include="MainWindow_Nodes.cs" />
+    <Compile Include="InputOneLine.cs" />
+    <Compile Include="gtk-gui\ToxSharpGui.InputOneLine.cs" />
+    <Compile Include="DataStorage.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
