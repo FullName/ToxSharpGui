@@ -10,6 +10,7 @@
   </import>
   <widget class="Gtk.Window" id="MainWindow" design-size="532 399">
     <property name="MemberName" />
+    <property name="Events">ExposureMask, StructureMask</property>
     <property name="Title" translatable="yes">MainWindow</property>
     <property name="WindowPosition">CenterOnParent</property>
     <child>
@@ -27,6 +28,7 @@
                 <property name="MemberName" />
                 <property name="CanFocus">True</property>
                 <property name="Label" translatable="yes">checkbutton1</property>
+                <property name="Active">True</property>
                 <property name="DrawIndicator">True</property>
                 <property name="HasLabel">True</property>
                 <property name="UseUnderline">True</property>
@@ -85,8 +87,10 @@
                     <child>
                       <widget class="Gtk.NodeView" id="nodeview1">
                         <property name="MemberName" />
+                        <property name="WidthRequest">256</property>
                         <property name="CanFocus">True</property>
                         <property name="ShowScrollbars">True</property>
+                        <property name="HeadersVisible">False</property>
                       </widget>
                     </child>
                   </widget>
@@ -103,7 +107,7 @@
               </widget>
               <packing>
                 <property name="Position">0</property>
-                <property name="AutoSize">True</property>
+                <property name="AutoSize">False</property>
               </packing>
             </child>
             <child>
@@ -123,7 +127,7 @@
           </widget>
           <packing>
             <property name="Position">1</property>
-            <property name="AutoSize">True</property>
+            <property name="AutoSize">False</property>
           </packing>
         </child>
       </widget>

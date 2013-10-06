@@ -18,8 +18,8 @@ namespace ToxSharpGui
 			if (bootstrapres <= 0)
 				return;
 
-			win.Title = "Tox#: " + toxsharp.ToxName() + " connecting...";
 			win.TextAdd(MainWindow.SourceType.System , 0, "SYSTEM", "Sent connection requests to " + bootstrapres + " other clients...");
+			win.TitleSet();
 
 			win.Show();
 			Application.Run();

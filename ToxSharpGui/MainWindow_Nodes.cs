@@ -7,173 +7,6 @@ using ToxSharpGui;
 
 public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup */
 {
-	protected class DataStorageSub
-	{
-	}
-
-	protected class DataStorageSubKeyKey : DataStorageSub
-	{
-		public Dictionary<ToxSharpGui.Key, TypeIDTreeNode> element;
-
-		public DataStorageSubKeyKey()
-		{
-			element = new Dictionary<ToxSharpGui.Key, TypeIDTreeNode>();
-		}
-	}
-
-	protected class DataStorageSubKeyUInt16 : DataStorageSub
-	{
-		public Dictionary<UInt16, TypeIDTreeNode> element;
-
-		public DataStorageSubKeyUInt16()
-		{
-			element = new Dictionary<ushort, TypeIDTreeNode>();
-		}
-	}
-
-	protected class DataStorage
-	{
-		// Dictionary: Type
-		//    Dictionary ID | List
-		protected Dictionary<TypeIDTreeNode.EntryType, DataStorageSub> data;
-
-		public DataStorage()
-		{
-			data = new Dictionary<TypeIDTreeNode.EntryType, DataStorageSub>();
-
-			data.Add(TypeIDTreeNode.EntryType.Friend, new DataStorageSubKeyUInt16());
-			data.Add(TypeIDTreeNode.EntryType.Stranger, new DataStorageSubKeyKey());
-			data.Add(TypeIDTreeNode.EntryType.Group, new DataStorageSubKeyUInt16());
-		}
-
-		public void Add(TypeIDTreeNode typeid)
-		{
-			DataStorageSub sub;
-			if (!data.TryGetValue(typeid.entryType, out sub))
-				return;
-
-			if ((typeid.entryType == TypeIDTreeNode.EntryType.Friend) ||
-				(typeid.entryType == TypeIDTreeNode.EntryType.Group))
-			{
-				DataStorageSubKeyUInt16 subint = sub as DataStorageSubKeyUInt16;
-				if (subint != null)
-					subint.element.Add(typeid.id, typeid);
-			}
-			else if (typeid.entryType == TypeIDTreeNode.EntryType.Stranger)
-			{
-				DataStorageSubKeyKey subkey = sub as DataStorageSubKeyKey;
-				StrangerTreeNode stranger = typeid as StrangerTreeNode;
-				if ((subkey != null) && (stranger != null))
-					subkey.element.Add(stranger.key, typeid);
-			}
-		}
-
-		public void Del(TypeIDTreeNode typeid)
-		{
-			// TODO
-		}
-
-		public TypeIDTreeNode Find(TypeIDTreeNode.EntryType entrytype, UInt16 id)
-		{
-			DataStorageSub sub;
-			if (!data.TryGetValue(entrytype, out sub))
-				return null;
-
-			DataStorageSubKeyUInt16 subactual = sub as DataStorageSubKeyUInt16;
-			if (subactual == null)
-				return null;
-			
-			TypeIDTreeNode typeid = null;
-			subactual.element.TryGetValue(id, out typeid);
-			return typeid;
-		}
-
-		public TypeIDTreeNode Find(TypeIDTreeNode.EntryType entrytype, ToxSharpGui.Key key)
-		{
-			DataStorageSub sub;
-			if (!data.TryGetValue(entrytype, out sub))
-				return null;
-
-			DataStorageSubKeyKey subactual = sub as DataStorageSubKeyKey;
-			if (subactual == null)
-				return null;
-			
-			TypeIDTreeNode typeid = null;
-			subactual.element.TryGetValue(key, out typeid);
-			return typeid;
-		}
-
-		public int FindFriendsWithKeyStartingWithID(string keyfragment, out FriendTreeNode friend)
-		{
-			friend = null;
-
-			DataStorageSub sub;
-			if (!data.TryGetValue(TypeIDTreeNode.EntryType.Friend, out sub))
-				return -1;
-
-			DataStorageSubKeyUInt16 subactual = sub as DataStorageSubKeyUInt16;
-			if (subactual == null)
-				return -1;
-
-			int rc = 0;
-			foreach(TypeIDTreeNode typeid in subactual.element.Values)
-			{
-				FriendTreeNode check = typeid as FriendTreeNode;
-				if (check == null)
-					continue;
-
-				if (0 == string.Compare(check.key.str.Substring(0, keyfragment.Length), keyfragment, true))
-				{
-					rc++;
-					friend = check;
-				}
-			}
-
-			return rc;
-		}
-
-		public void FriendCount(out int online, out int total)
-		{
-			online = 0;
-			total = 0;
-
-			DataStorageSub sub;
-			if (!data.TryGetValue(TypeIDTreeNode.EntryType.Friend, out sub))
-				return;
-
-			DataStorageSubKeyUInt16 subactual = sub as DataStorageSubKeyUInt16;
-			if (subactual == null)
-				return;
-
-			foreach(TypeIDTreeNode typeid in subactual.element.Values)
-			{
-				FriendTreeNode friend = typeid as FriendTreeNode;
-				if (friend != null)
-				{
-					total++;
-					if (friend.online)
-						online++;
-				}
-			}
-		}
-
-		public bool GroupEnumerator(out Dictionary<UInt16, TypeIDTreeNode> groups)
-		{
-			groups = null;
-
-			DataStorageSub sub;
-			if (!data.TryGetValue(TypeIDTreeNode.EntryType.Group, out sub))
-				return false;
-
-			DataStorageSubKeyUInt16 subactual = sub as DataStorageSubKeyUInt16;
-			if (subactual == null)
-				return false;
-
-			groups = subactual.element;
-			return true;
-		}
-	}
-
 	protected DataStorage _datastorage;
 	protected DataStorage datastorage
 	{
@@ -186,104 +19,7 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 		}
 	}
 
-	protected class HolderTreeNode : Gtk.TreeNode
-	{
-		public TypeIDTreeNode typeid;
-
-		protected HolderTreeNode(TypeIDTreeNode typeid)
-		{
-			this.typeid = typeid;
-		}
-
-		public static HolderTreeNode Create(TypeIDTreeNode typeid)
-		{
-			return new HolderTreeNode(typeid);
-		}
-	}
-
-	protected HolderTreeNode HolderTreeNodeNew(TypeIDTreeNode typeid)
-	{
-		datastorage.Add(typeid);
-		return HolderTreeNode.Create(typeid);
-	}
-
-	protected static HolderTreeNode HolderTreeNodeHeaderNew(string text)
-	{
-		TypeIDTreeNode typeid = new HeaderTreeNode(text);
-		return HolderTreeNode.Create(typeid);
-	}
-
-	protected class TypeIDTreeNode
-	{
-		public enum EntryType { Header, Friend, Stranger, Group };
-
-		public EntryType entryType;
-		public UInt16 id;
-
-		public TypeIDTreeNode(EntryType entryType, UInt16 id)
-		{
-			this.entryType = entryType;
-			this.id = id;
-		}
-
-	}
-
-	protected class HeaderTreeNode : TypeIDTreeNode
-	{
-		public string title;
-		
-		public HeaderTreeNode(string title) : base(EntryType.Header, 0)
-		{
-			this.title = title;
-		}
-	}
-
-	protected class KeyTreeNode : TypeIDTreeNode
-	{
-		public ToxSharpGui.Key key;
-
-		public KeyTreeNode(EntryType entrytype, UInt16 id, ToxSharpGui.Key key) : base(entrytype, id)
-		{
-			this.key = key;
-		}
-	}
-
-	protected class FriendTreeNode : KeyTreeNode
-	{
-		public string name;
-		public string state;
-		public bool online;
-
-		public FriendTreeNode(UInt16 id, ToxSharpGui.Key key, string name, string state, bool online) : base(EntryType.Friend, id, key)
-		{
-			this.name = name;
-			this.state = state;
-			this.online = online;
-		}
-	}
-
-	protected class StrangerTreeNode : KeyTreeNode
-	{
-		public string message;
-		
-		public StrangerTreeNode(ToxSharpGui.Key key, string message) : base(EntryType.Stranger, 0, key)
-		{
-			this.message = message;
-		}
-	}
-
-	protected class GroupTreeNode : KeyTreeNode
-	{
-		public string name;
-
-		public GroupTreeNode(UInt16 id, ToxSharpGui.Key key, string name) : base(EntryType.Group, id, key)
-		{
-			this.name = name;
-		}
-	}
-
 	protected Gtk.TreeStore _store;
-
 	protected Gtk.TreeStore store
 	{
 		get
@@ -295,95 +31,7 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 		}
 	}
 
-	protected class StoreIterators
-	{
-		protected Gtk.TreeStore store;
-
-		public StoreIterators(Gtk.TreeStore store)
-		{
-			this.store = store;
-		}
-
-		public bool GetByTypeRaw(TypeIDTreeNode.EntryType type, out Gtk.TreeIter iter)
-		{
-			switch(type)
-			{
-				case TypeIDTreeNode.EntryType.Friend:
-					iter = _frienditer;
-					break;
-					
-				case TypeIDTreeNode.EntryType.Stranger:
-					iter = _strangeriter;
-					break;
-
-				case TypeIDTreeNode.EntryType.Group:
-					iter = _groupiter;
-					break;
-			}
-
-			return !iter.Equals(Gtk.TreeIter.Zero);
-		}
-
-		public void SetByTypeRaw(TypeIDTreeNode.EntryType type, Gtk.TreeIter iter)
-		{
-			if (type == TypeIDTreeNode.EntryType.Friend)
-				_frienditer = iter;
-			if (type == TypeIDTreeNode.EntryType.Stranger)
-				_strangeriter = iter;
-			if (type == TypeIDTreeNode.EntryType.Group)
-				_groupiter = iter;
-		}
-
-		protected Gtk.TreeIter _frienditer;
-		protected Gtk.TreeIter _strangeriter;
-		protected Gtk.TreeIter _groupiter;
-
-		public Gtk.TreeIter frienditer
-		{
-			get
-			{
-				if (_frienditer.Equals(Gtk.TreeIter.Zero))
-				{
-					_frienditer = store.AppendValues(HolderTreeNodeHeaderNew("Friends"));
-					if (!_strangeriter.Equals(Gtk.TreeIter.Zero))
-						store.MoveBefore(_frienditer, _strangeriter);
-					else if (!_groupiter.Equals(Gtk.TreeIter.Zero))
-						store.MoveBefore(_frienditer, _groupiter);
-				}
-	
-				return _frienditer;
-			}
-		}
-
-		public Gtk.TreeIter strangeriter
-		{
-			get
-			{
-				if (_strangeriter.Equals(Gtk.TreeIter.Zero))
-				{
-					_strangeriter = store.AppendValues(HolderTreeNodeHeaderNew("Strangers"));
-					if (!_groupiter.Equals(Gtk.TreeIter.Zero))
-						store.MoveBefore(_strangeriter, _groupiter);
-				}
-	
-				return _strangeriter;
-			}
-		}
-	
-		public Gtk.TreeIter groupiter
-		{
-			get
-			{
-				if (_groupiter.Equals(Gtk.TreeIter.Zero))
-					_groupiter = store.AppendValues(HolderTreeNodeHeaderNew("Group"));
-	
-				return _groupiter;
-			}
-		}
-	}
-
 	protected StoreIterators _storeiterators;
-
 	protected StoreIterators storeiterators
 	{
 		get
@@ -470,21 +118,36 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 //			(cell as Gtk.CellRendererText).Tooltip = tip;
 	}
 
-	protected Gtk.ListStore liststoreall;
-
-	protected class ListStoreEx : Gtk.ListStore
+	protected Gtk.ListStore _liststoreall;
+	protected Gtk.ListStore liststoreall
 	{
-		public SourceType type;
-		public UInt16 id;
-		public ListStoreEx(SourceType type, UInt16 id, params Type[] args) : base(args)
+		get
 		{
-			this.type = type;
-			this.id = id;
+			// source, message, source-type, source-id, timestamp
+			if (_liststoreall == null)
+				_liststoreall = new ListStore(typeof(string), typeof(string), typeof(byte), typeof(UInt16), typeof(Int64));
+
+			return _liststoreall;
 		}
 	}
 
-	protected List<ListStoreEx> liststorepartial;
+	protected List<ListStoreSourceTypeID> _liststorepartial;
+	protected List<ListStoreSourceTypeID> liststorepartial
+	{
+		get
+		{
+			if (_liststorepartial == null)
+				_liststorepartial = new List<ListStoreSourceTypeID>();
 
+			return _liststorepartial;
+		}
+	}		
+
+/*
+ *
+ *
+ *
+ */
 	protected void TreesSetup()
 	{
 		TreeViewColumn markcol = new TreeViewColumn();
@@ -510,16 +173,32 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 		nodeview1.AppendColumn("Source", new Gtk.CellRendererText(), "text", 0);
 
 		Gtk.CellRendererText renderer1 = new Gtk.CellRendererText();
-		renderer1.WrapMode = Pango.WrapMode.Word;
+		// utterly braindamaged: useless without width. WTF.
+		renderer1.WrapMode = Pango.WrapMode.WordChar;
+		// and width cannot be set sanely, or adjusted sanely. WAICF.
+		renderer1.WrapWidth = 400;
+
 		nodeview1.AppendColumn("Text", renderer1, "text", 1);
 
-		// source, message, source-type, source-id, timestamp
-		liststoreall = new ListStore(typeof(string), typeof(string), typeof(byte), typeof(UInt16), typeof(Int64));
 		nodeview1.Model = liststoreall;
-
-		liststorepartial = new List<ListStoreEx>();
+		// on resize of nodeview1, set renderer1.wrapwidth
 	}
 
+	public void WidthNew(int Width)
+	{
+/*
+		 * ScrolledWindow scrollwindow = notebook1.CurrentPageWidget as ScrolledWindow;
+		NodeView nodeview = scrollwindow.Child as NodeView;
+
+		TreeViewColumn column1 = nodeview.Columns[0] as TreeViewColumn;
+		CellRendererText renderer1 = column1.CellRenderers[0] as CellRendererText;
+
+		TreeViewColumn column2 = nodeview.Columns[1] as TreeViewColumn;
+		CellRendererText renderer2 = column2.CellRenderers[0] as CellRendererText;
+*/
+//		renderer2.WrapWidth = Width - hbox1.WidthRequest - 30 - renderer1.Width;
+//		renderer2.Width = Width - hbox1.WidthRequest - 25 - renderer1.Width;
+	}
 /*
  *
  *
@@ -532,10 +211,10 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 	{
 		long ticks = DateTime.Now.Ticks;
 		liststoreall.AppendValues(source, text, (byte)type, id, ticks);
-		foreach(ListStoreEx liststore in liststorepartial)
-			if (liststore.type == type)
-				// Friend and Group have IDs
-				if (((type != SourceType.Friend) && (type != SourceType.Group)) || (liststore.id == id))
+
+		if ((type == SourceType.Friend) || (type == SourceType.Group))
+			foreach(ListStoreSourceTypeID liststore in liststorepartial)
+				if ((liststore.type == type) && (liststore.id == id))
 					liststore.AppendValues(source, text, (byte)type, id, ticks);
 		
 		Gtk.Adjustment adjust = nodescroll1.Vadjustment;
@@ -576,7 +255,7 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 
 				if (dlg.Do("You can add a message to your request:", out friendmsg))
 				{
-					ToxSharpGui.Key friendkey = new ToxSharpGui.Key(friendnew);
+					ToxKey friendkey = new ToxKey(friendnew);
 					int friendid = toxsharp.ToxFriendAdd(friendkey, friendmsg);
 					if (friendid >= 0)
 					{
@@ -617,7 +296,7 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 		{
 			string keystr = item.Name.Substring(7);
 			TextAdd(SourceType.Debug, 0, "DEBUG", "stranger action: ACCEPT => [" + keystr + "]");
-			ToxSharpGui.Key key = new ToxSharpGui.Key(keystr);
+			ToxKey key = new ToxKey(keystr);
 			int i = toxsharp.ToxFriendAddNoRequest(key);
 			if (i >= 0)
 			{
@@ -845,7 +524,7 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 			return;
 
 		SourceType type = typeid.entryType == TypeIDTreeNode.EntryType.Friend ? SourceType.Friend : SourceType.Group;
-		foreach(ListStoreEx liststore in liststorepartial)
+		foreach(ListStoreSourceTypeID liststore in liststorepartial)
 			if ((liststore.type == type) &&
 			    (liststore.id == typeid.id))
 				return;
@@ -854,11 +533,11 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 		nodeview.AppendColumn("Source", new Gtk.CellRendererText(), "text", 0);
 
 		Gtk.CellRendererText renderer = new Gtk.CellRendererText();
-		renderer.WrapMode = Pango.WrapMode.Word;
+		renderer.WrapMode = Pango.WrapMode.WordChar;
 		nodeview.AppendColumn("Text", renderer, "text", 1);
 		
 		// source, message, source-type, source-id, timestamp
-		ListStoreEx liststorenew = new ListStoreEx(type, typeid.id, typeof(string), typeof(string), typeof(byte), typeof(UInt16), typeof(Int64));
+		ListStoreSourceTypeID liststorenew = new ListStoreSourceTypeID(type, typeid.id, typeof(string), typeof(string), typeof(byte), typeof(UInt16), typeof(Int64));
 		nodeview.Model = liststorenew;
 
 		liststorepartial.Add(liststorenew);

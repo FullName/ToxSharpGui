@@ -4,20 +4,46 @@ using SysIO = System.IO;
 using SysGlobal = System.Globalization;
 using SysACL = System.Security.AccessControl;
 using SRIOp = Sys.Runtime.InteropServices; // DllImport
+using SysEnv = Sys.Environment;
 
 namespace ToxSharpGui
 {
-	public class Key : Sys.IComparable, Sys.IEquatable<Key>
+	public interface IToxSharpBasic
+	{
+		void ToxConnected(bool state);
+	}
+
+	public interface IToxSharpFriend : IToxSharpBasic
+	{
+		void ToxFriendAddRequest(ToxKey key, string message);
+
+		void ToxFriendInit(int id, ToxKey key, string name, bool online, FriendPresenceState presence, string state);
+		
+		void ToxFriendName(int friendId, string name);
+		void ToxFriendPresenceState(int friendId, string state);
+		void ToxFriendPresenceState(int friendId, FriendPresenceState state);
+		void ToxFriendConnected(int friendId, bool connected);
+		void ToxFriendMessage(int friendId, string message);
+		void ToxFriendAction(int friendId, string action);
+	}
+
+	public interface IToxSharpGroup : IToxSharpBasic
+	{
+	}
+
+	public enum FriendPresenceState { Unknown, Away, Busy, Invalid };
+
+	public class ToxKey : Sys.IComparable, Sys.IEquatable<ToxKey>
 	{
 		protected string _str;
 		protected byte[] _bin;
 
-		public Key(string str)
+		public ToxKey(string str)
 		{
 			this._str = str;
 		}
 
-		public Key(byte[] bin)
+		public ToxKey(byte[] bin)
 		{
 			this._bin = new byte[bin.Length];
 			for(uint i = 0; i < bin.Length; i++)
@@ -58,41 +84,17 @@ namespace ToxSharpGui
 
 		public int CompareTo(object X)
 		{
-			Key key = X as Key;
+			ToxKey key = X as ToxKey;
 			if (key != null)
 				return string.Compare(str, key.str, true);
 
 			return 0;
 		}
 
-		public bool Equals(Key key)
+		public bool Equals(ToxKey key)
 		{
 			return string.Compare(str, key.str, true) == 0;
 		}
-	}
-
-	public enum FriendPresenceState { Unknown, Away, Busy, Invalid };
-
-	public interface IToxSharpBasic
-	{
-		void ToxConnected(bool state);
-	}
-
-	public interface IToxSharpFriend : IToxSharpBasic
-	{
-		void ToxFriendAddRequest(Key key, string message);
-
-		void ToxFriendInit(int id, Key key, string name, string state, bool online);
-		
-		void ToxFriendName(int friendId, string name);
-		void ToxFriendPresenceState(int friendId, string state);
-		void ToxFriendPresenceState(int friendId, FriendPresenceState state);
-		void ToxFriendConnected(int friendId, bool connected);
-		void ToxFriendMessage(int friendId, string message);
-	}
-
-	public interface IToxSharpGroup : IToxSharpBasic
-	{
 	}
 
 	public class ToxSharp
@@ -121,7 +123,7 @@ namespace ToxSharpGui
 		private void toxpollfunc()
 		{
 			bool connected_ui = false;
-			Sys.UInt16 milliseconds = 400;
+			Sys.UInt16 milliseconds = 750;
 			Sys.UInt32 accumulated = 0;
 			int res, counter = 3;
 			byte[] data = new byte[0];
@@ -231,9 +233,49 @@ namespace ToxSharpGui
 	
 		protected string ToxConfigHome()
 		{
-			// TODO: other systems, make directory
-			if (System.Environment.OSVersion.Platform == System.PlatformID.Unix)
-				return System.Environment.GetEnvironmentVariable("HOME") + "/.config/tox/";
+			// TODO: other systems
+			if (SysEnv.OSVersion.Platform == System.PlatformID.Unix)
+			{
+				string path = SysEnv.GetEnvironmentVariable("HOME");
+				if (path == null)
+					path = "";
+				else if (path != "")
+				{
+					path += "/.config/tox/";
+					if (!SysIO.Directory.Exists(path))
+						SysIO.Directory.CreateDirectory(path);
+				}
+
+				return path;
+			}
+			else if (SysEnv.OSVersion.Platform == System.PlatformID.Win32NT)
+			{
+				string path = SysEnv.GetEnvironmentVariable("USERPROFILE");
+				if (path == null)
+					path = "";
+				else if (path != "")
+				{
+					path += "\\Tox\\";
+					if (!SysIO.Directory.Exists(path))
+						SysIO.Directory.CreateDirectory(path);
+				}
+
+				return path;
+			}
+			else if (SysEnv.OSVersion.Platform == System.PlatformID.MacOSX)
+			{
+				string path = SysEnv.GetEnvironmentVariable("HOME");
+				if (path == null)
+					path = "";
+				else if (path != "")
+				{
+					path += "/Library/Application Support/Tox/";
+					if (!SysIO.Directory.Exists(path))
+						SysIO.Directory.CreateDirectory(path);
+				}
+
+				return path;
+			}
 			else
 				return "";
 		}
@@ -306,17 +348,23 @@ namespace ToxSharpGui
 			toxmutex.ReleaseMutex();
 		}
 
+		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
+		private static extern int tox_getclient_id(Sys.IntPtr tox, int friendnumber, byte[] friendIdbin);
+
 		[SRIOp.DllImport("toxcore")]
 		private static extern int tox_getname(Sys.IntPtr tox, int friendnumber, byte[] name);
+
+		[SRIOp.DllImport("toxcore")] /* 1 == online, 0 == offline */
+		private static extern int tox_get_friend_connectionstatus(Sys.IntPtr tox, int friendnumber);
+
+		[SRIOp.DllImport("toxcore")] /* unset, away, busy, invalid */
+		private static extern FriendPresenceState tox_get_userstatus(Sys.IntPtr tox, int friendnumber);
 
 		[SRIOp.DllImport("toxcore")]
 		private static extern int tox_get_statusmessage_size(Sys.IntPtr tox, int friendnumber);
 
 		[SRIOp.DllImport("toxcore")] /* string as set by user */
 		private static extern int tox_copy_statusmessage(Sys.IntPtr tox, int friendnumber, byte[] buf, Sys.UInt32 maxlen);
-
-		[SRIOp.DllImport("toxcore")] /* 1 == online, 0 == offline */
-		private static extern int tox_get_friend_connectionstatus(Sys.IntPtr tox, int friendnumber);
 
 		protected void ToxFriendInitInternal(byte[] name, byte[] state, int i)
 		{
@@ -326,6 +374,8 @@ namespace ToxSharpGui
 			tox_getname(tox, i, name);
 			name[name.Length - 1] = 0;
 
+			FriendPresenceState presence = tox_get_userstatus(tox, i);
+
 			Sys.UInt32 lenwithzero =(Sys.UInt32)tox_get_statusmessage_size(tox, i);
 			if (state.Length < lenwithzero)
 				state = new byte[lenwithzero];
@@ -333,10 +383,10 @@ namespace ToxSharpGui
 
 			if (cbFriend != null)
 			{
-				Key key = new Key(keybin);
+				ToxKey key = new ToxKey(keybin);
 				cbFriend.ToxFriendInit(i, key, CutAtNul(System.Text.Encoding.UTF8.GetString(name)),
-						               CutAtNul(System.Text.Encoding.UTF8.GetString(state)),
-				                       1 == tox_get_friend_connectionstatus(tox, i));
+				                       1 == tox_get_friend_connectionstatus(tox, i), presence,
+						               CutAtNul(System.Text.Encoding.UTF8.GetString(state)));
 			}
 		}
 
@@ -345,7 +395,7 @@ namespace ToxSharpGui
 
 		protected string _name = null;
 
-		public string ToxName()
+		public string ToxNameGet()
 		{
 			if (_name != null)
 				return _name;
@@ -362,6 +412,26 @@ namespace ToxSharpGui
 			_name = CutAtNul(System.Text.Encoding.UTF8.GetString(space));
 
 			return _name;
+		}
+		
+		[SRIOp.DllImport("toxcore")]
+		private static extern int tox_setname(Sys.IntPtr tox, byte[] namebin, Sys.UInt16 length);
+
+		public int ToxNameSet(string namestr)
+		{
+			if (tox == Sys.IntPtr.Zero)
+				return -1;
+
+			byte[] namebin = System.Text.Encoding.UTF8.GetBytes(namestr + '\0');
+
+			toxmutex.WaitOne();
+			int rc = tox_setname(tox, namebin, (Sys.UInt16)namebin.Length);
+			toxmutex.ReleaseMutex();
+
+			if (rc == 0)
+				_name = namestr;
+
+			return rc == 0 ? 1 : 0;
 		}
 
 		public int ToxBootstrap()
@@ -481,14 +551,14 @@ namespace ToxSharpGui
 			byte[] addrbin = new byte[ID_LEN_BINARY];
 			tox_getaddress(tox, addrbin);
 
-			Key key = new Key(addrbin);
+			ToxKey key = new ToxKey(addrbin);
 			return key.str;
 		}
 
 		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
 		private static extern int tox_addfriend(Sys.IntPtr tox, byte[] friendIdbin, byte[] messagebin, Sys.UInt16 length);
 
-		public int ToxFriendAdd(Key friendkey, string messagestr)
+		public int ToxFriendAdd(ToxKey friendkey, string messagestr)
 		{
 			byte[] messagebin = System.Text.Encoding.UTF8.GetBytes(messagestr + '\0');
 
@@ -502,7 +572,7 @@ namespace ToxSharpGui
 		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
 		private static extern int tox_addfriend_norequest(Sys.IntPtr tox, byte[] friendId);
 
-		public int ToxFriendAddNoRequest(Key friendkey)
+		public int ToxFriendAddNoRequest(ToxKey friendkey)
 		{
 			if (friendkey.bin.Length != ID_LEN_BINARY)
 				return -1;
@@ -517,37 +587,20 @@ namespace ToxSharpGui
 		}
 
 		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
-		private static extern int tox_getclient_id(Sys.IntPtr tox, int friendnumber, byte[] friendIdbin);
+		private static extern int tox_getfriend_id(Sys.IntPtr tox, byte[] client_id);
 
 		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
 		private static extern int tox_delfriend(Sys.IntPtr tox, int friendnumber);
 
-		public int ToxFriendDel(Key friendkey)
+		public int ToxFriendDel(ToxKey friendkey)
 		{
 			if (friendkey.bin.Length != ID_LEN_BINARY)
 				return -1;
 
-			int rc = -1;
-			byte[] bin = new byte[ID_LEN_BINARY];
-
 			toxmutex.WaitOne();
-			int friendnum = (int)tox_count_friendlist(tox);
-			for(int i = 0; i < friendnum; i++)
-			{
-				tox_getclient_id(tox, i, bin);
-
-				// holy cow: no memcmp!!!
-				int k;
-				for(k = 0; k < ID_LEN_BINARY; k++)
-					if (friendkey.bin[k] != bin[k])
-						break;
-			
-				if (k == ID_LEN_BINARY)
-				{
-					rc = tox_delfriend(tox, i);
-					break;
-				}
-			}
+			int rc = tox_getfriend_id(tox, friendkey.bin);
+			if (rc >= 0)
+				rc = tox_delfriend(tox, rc);
 			toxmutex.ReleaseMutex();
 
 			return rc;
@@ -565,6 +618,21 @@ namespace ToxSharpGui
 			Sys.UInt32 rc = tox_sendmessage(tox, id, messagebin, (Sys.UInt32)messagebin.Length);
 			toxmutex.ReleaseMutex();
 			
+			return rc;
+		}
+
+		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
+		private static extern int tox_sendaction(Sys.IntPtr tox, int friendnumber, byte[] action, Sys.UInt32 length);
+
+		public int ToxFriendAction(Sys.UInt16 id, string actionstr)
+		{
+			// NOT null-terminated, is that a problem? Yes.
+			byte[] actionbin = System.Text.Encoding.UTF8.GetBytes(actionstr + '\0');
+
+			toxmutex.WaitOne();
+			int rc = tox_sendaction(tox, id, actionbin, (Sys.UInt32)actionbin.Length);
+			toxmutex.ReleaseMutex();
+
 			return rc;
 		}
 
@@ -610,7 +678,7 @@ namespace ToxSharpGui
 		{
 			if (cbFriend != null)
 			{
-				Key key = new Key(keybinary);
+				ToxKey key = new ToxKey(keybinary);
 				cbFriend.ToxFriendAddRequest(key, CutAtNul(System.Text.Encoding.UTF8.GetString(message)));
 			}
 		}
@@ -633,6 +701,26 @@ namespace ToxSharpGui
 		{
 			if (cbFriend != null)
 				cbFriend.ToxFriendMessage(id, CutAtNul(System.Text.Encoding.UTF8.GetString(message)));
+		}
+
+		/*
+		 * void callback(Tox *tox, int friendid, uint8_t *data, uint16_t length, void *userdata)
+		 * 
+		 * void tox_callback_action(Tox *tox,
+		 * 							void (*function)(Tox *tox, int, uint8_t *, uint16_t, void *),
+		 * 							void *userdata);
+		 */
+		
+		protected delegate void CallBackDelegateFriendAction(Sys.IntPtr tox, int friendid, [SRIOp.MarshalAs(SRIOp.UnmanagedType.LPArray, SizeParamIndex = 3)] byte[] action, Sys.UInt16 length, Sys.IntPtr X);
+		protected CallBackDelegateFriendAction cbfriendaction;
+
+		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
+		private static extern void tox_callback_action(Sys.IntPtr tox, CallBackDelegateFriendAction cbfriendaction, Sys.IntPtr X);
+
+		protected void ToxCallbackFriendAction(Sys.IntPtr tox, int id, byte[] action, Sys.UInt16 length, Sys.IntPtr X)
+		{
+			if (cbFriend != null)
+				cbFriend.ToxFriendAction(id, CutAtNul(System.Text.Encoding.UTF8.GetString(action)));
 		}
 
 		/*
@@ -681,6 +769,13 @@ namespace ToxSharpGui
 			toxmutex.ReleaseMutex();
 
 
+			cbfriendaction = new CallBackDelegateFriendAction(ToxCallbackFriendAction);
+
+			toxmutex.WaitOne();
+			tox_callback_action(tox, cbfriendaction, Sys.IntPtr.Zero);
+			toxmutex.ReleaseMutex();
+
+
 			cbfriendname = new CallBackDelegateFriendName(ToxCallbackFriendName);
 
 			toxmutex.WaitOne();
@@ -699,9 +794,5 @@ namespace ToxSharpGui
 			else
 				return data;
 		}
-
-		// unused
-		[SRIOp.DllImport("toxcore")] /* unset, away, busy, invalid */
-		private static extern FriendPresenceState tox_get_userstatus(Sys.IntPtr tox, int friendnumber);
 	}
 }

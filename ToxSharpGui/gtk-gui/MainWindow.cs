@@ -19,6 +19,7 @@ public partial class MainWindow
 	{
 		global::Stetic.Gui.Initialize (this);
 		// Widget MainWindow
+		this.Events = ((global::Gdk.EventMask)(32770));
 		this.Name = "MainWindow";
 		this.Title = global::Mono.Unix.Catalog.GetString ("MainWindow");
 		this.WindowPosition = ((global::Gtk.WindowPosition)(4));
@@ -37,6 +38,7 @@ public partial class MainWindow
 		this.checkbutton1.CanFocus = true;
 		this.checkbutton1.Name = "checkbutton1";
 		this.checkbutton1.Label = global::Mono.Unix.Catalog.GetString ("checkbutton1");
+		this.checkbutton1.Active = true;
 		this.checkbutton1.DrawIndicator = true;
 		this.checkbutton1.UseUnderline = true;
 		this.vbox1.Add (this.checkbutton1);
@@ -82,8 +84,10 @@ public partial class MainWindow
 		this.nodescroll1.ShadowType = ((global::Gtk.ShadowType)(1));
 		// Container child nodescroll1.Gtk.Container+ContainerChild
 		this.nodeview1 = new global::Gtk.NodeView ();
+		this.nodeview1.WidthRequest = 256;
 		this.nodeview1.CanFocus = true;
 		this.nodeview1.Name = "nodeview1";
+		this.nodeview1.HeadersVisible = false;
 		this.nodescroll1.Add (this.nodeview1);
 		this.notebook1.Add (this.nodescroll1);
 		// Notebook tab

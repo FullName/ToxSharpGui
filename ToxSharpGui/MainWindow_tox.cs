@@ -9,18 +9,15 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 {
 	public ToxSharp toxsharp;
 
+	public void TitleSet()
+	{
+		string name = toxsharp.ToxNameGet();
+		string selfid = toxsharp.ToxSelfID();
+		Title = "Tox# - " + name + " [" + selfid + "]";
+	}
+
 	public void ToxConnected(bool state)
 	{
-		if (state)
-		{
-			string name = toxsharp.ToxName();
-			string selfid = toxsharp.ToxSelfID();
-			if (selfid != "")
-				Title = "Tox# - " + name + " [" + selfid.Substring(0, 12) + "]";
-			else
-				Title = "Tox# - " + name + " [?]";
-		}
-
 		checkbutton1.Active = state;
 		checkbutton1.Label = state ? "Up" : "Down";
 
@@ -31,7 +28,7 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 			checkbutton1.Label += " | F: " + friendsonline + " on, " + friendstotal + " total";
 	}
 
-	public void ToxFriendAddRequest(ToxSharpGui.Key key, string message)
+	public void ToxFriendAddRequest(ToxKey key, string message)
 	{
 		TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Stranger, key);
 		if (typeid != null)
@@ -49,7 +46,8 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 		}
 
 		StrangerTreeNode strangernew = new StrangerTreeNode(key, message);
-		store.AppendValues(storeiterators.strangeriter, HolderTreeNodeNew(strangernew));
+		HolderTreeNode holder = datastorage.HolderTreeNodeNew(strangernew);
+		store.AppendValues(storeiterators.strangeriter, holder);
 		treeview1.ExpandAll();
 
 		TextAdd(SourceType.System, 0, "SYSTEM", "New friend request: Message is [" + message + "]\n" +
@@ -129,25 +127,28 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 		ToxConnected(checkbutton1.Active);
 	}
 
-	public void ToxFriendInit(int id, ToxSharpGui.Key key, string name, string state, bool online)
+	public void ToxFriendInit(int id, ToxKey key, string name, bool online, FriendPresenceState presence, string state)
 	{
 		TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
 		if (typeid != null)
 		{
-			FriendTreeNode friend = typeid as FriendTreeNode;
-			if (friend != null)
+			FriendTreeNode friendexisting = typeid as FriendTreeNode;
+			if (friendexisting != null)
 			{
-				friend.key = key;
-				friend.name = name;
-				friend.state = state;
-				friend.online = online;
+				friendexisting.key = key;
+				friendexisting.name = name;
+				friendexisting.online = online;
+				friendexisting.presence = presence;
+				friendexisting.state = state;
 
 				treeview1.QueueDraw();
 				return;
 			}
 		}
 
-		store.AppendValues(storeiterators.frienditer, HolderTreeNodeNew(new FriendTreeNode((UInt16)id, key, name, state, online)));
+		FriendTreeNode friendnew = new FriendTreeNode((UInt16)id, key, name, online, presence, state);
+		HolderTreeNode holder = datastorage.HolderTreeNodeNew(friendnew);
+		store.AppendValues(storeiterators.frienditer, holder);
 		treeview1.ExpandAll();
 	}
 
@@ -168,5 +169,24 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 			handle += friend.key.str.Substring(0, 8) + "...";
 
 		TextAdd(SourceType.Friend, friend.id, handle, message);
+	}
+
+	public void ToxFriendAction(int id, string action)
+	{
+		TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
+		if (typeid == null)
+			return;
+
+		FriendTreeNode friend = typeid as FriendTreeNode;
+		if (friend == null)
+			return;
+
+		string handle = "[" + friend.id + "] ";
+		if (friend.name.Length > 0)
+			handle += friend.name;
+		else
+			handle += friend.key.str.Substring(0, 8) + "...";
+
+		TextAdd(SourceType.Friend, friend.id, "ACTION", handle + " " + action);
 	}
 }
