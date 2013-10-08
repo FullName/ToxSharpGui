@@ -9,13 +9,6 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 {
 	public ToxSharp toxsharp;
 
-	public void TitleSet()
-	{
-		string name = toxsharp.ToxNameGet();
-		string selfid = toxsharp.ToxSelfID();
-		Title = "Tox# - " + name + " [" + selfid + "]";
-	}
-
 	public void ToxConnected(bool state)
 	{
 		checkbutton1.Active = state;
@@ -39,8 +32,8 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 				strangerexisting.message = message;
 				treeview1.QueueDraw();
 	
-				TextAdd(SourceType.System, 0, "SYSTEM", "Updated friend request: Message is [" + message + "]\n" +
-														"ID: " + strangerexisting.key.str);
+				TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Updated friend request: Message is [" + message + "]\n" +
+														 "ID: " + strangerexisting.key.str);
 				return;
 			}
 		}
@@ -50,8 +43,8 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 		store.AppendValues(storeiterators.strangeriter, holder);
 		treeview1.ExpandAll();
 
-		TextAdd(SourceType.System, 0, "SYSTEM", "New friend request: Message is [" + message + "]\n" +
-												"ID: " + strangernew.key.str);
+		TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "New friend request: Message is [" + message + "]\n" +
+												 "ID: " + strangernew.key.str);
 	}
 		
 	protected List<string> FriendPresenceStateToString;
@@ -168,7 +161,7 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 		else
 			handle += friend.key.str.Substring(0, 8) + "...";
 
-		TextAdd(SourceType.Friend, friend.id, handle, message);
+		TextAdd(Interfaces.SourceType.Friend, friend.id, handle, message);
 	}
 
 	public void ToxFriendAction(int id, string action)
@@ -187,6 +180,6 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 		else
 			handle += friend.key.str.Substring(0, 8) + "...";
 
-		TextAdd(SourceType.Friend, friend.id, "ACTION", handle + " " + action);
+		TextAdd(Interfaces.SourceType.Friend, friend.id, "ACTION", handle + " " + action);
 	}
 }

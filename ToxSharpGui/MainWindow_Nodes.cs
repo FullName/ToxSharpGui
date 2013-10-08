@@ -13,7 +13,7 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 		get
 		{
 			if (_datastorage == null)
-				_datastorage = new DataStorage();
+				_datastorage = new DataStorage(store, storeiterators);
 
 			return _datastorage;
 		}
@@ -169,6 +169,7 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 
 		treeview1.ButtonReleaseEvent += OnTreeview1ButtonReleaseEvent;
 		treeview1.KeyReleaseEvent += OnTreeview1KeyReleaseEvent;
+		treeview1.PopupMenu += OnTreeview1PopupMenu;
 
 		nodeview1.AppendColumn("Source", new Gtk.CellRendererText(), "text", 0);
 
@@ -205,14 +206,12 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
  *
  */
 
-	public enum SourceType { Friend, Stranger, Group, System, Debug };
-
-	public void TextAdd(SourceType type, UInt16 id, string source, string text)
+	public void TextAdd(Interfaces.SourceType type, UInt16 id, string source, string text)
 	{
 		long ticks = DateTime.Now.Ticks;
 		liststoreall.AppendValues(source, text, (byte)type, id, ticks);
 
-		if ((type == SourceType.Friend) || (type == SourceType.Group))
+		if ((type == Interfaces.SourceType.Friend) || (type == Interfaces.SourceType.Group))
 			foreach(ListStoreSourceTypeID liststore in liststorepartial)
 				if ((liststore.type == type) && (liststore.id == id))
 					liststore.AppendValues(source, text, (byte)type, id, ticks);
@@ -227,293 +226,6 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
  *
  */
 
-	protected void DumpAction(object o, string text)
-	{
-		Gtk.TreeView treeview = (Gtk.TreeView)o;
-		Gtk.TreePath path;
-		Gtk.TreeViewColumn col;
-		treeview.GetCursor(out path, out col);
-		
-		if (path != null)
-			text += " -- " + path.ToString();
-		if (col != null)
-			text += " :: " + col.ToString();
-		TextAdd(0, 256, "DEBUG", text);
-	}
-
-	protected void TreeViewPopupNew(object o, System.EventArgs args)
-	{
-		Gtk.MenuItem item = o as Gtk.MenuItem;
-		if (item.Name == "new:friend")
-		{
-			string friendnew, friendmsg;
-			InputOneLine dlg = new InputOneLine();
-			if (dlg.Do("For this action, an ID is required.\nIt's a string of 78 characters.\nPlease insert it below:", out friendnew))
-			{
-				if (friendnew.Length != 2 * ToxSharp.ID_LEN_BINARY)
-					return;
-
-				if (dlg.Do("You can add a message to your request:", out friendmsg))
-				{
-					ToxKey friendkey = new ToxKey(friendnew);
-					int friendid = toxsharp.ToxFriendAdd(friendkey, friendmsg);
-					if (friendid >= 0)
-					{
-						TextAdd(SourceType.Debug, 0, "SYSTEM", "Friend request sent to " + friendkey.str + ".");
-						toxsharp.ToxFriendInit(friendid);
-					}
-				}
-			}
-	
-			return;
-		}
-
-		TextAdd(SourceType.Debug, 0, "DEBUG", "new something: " + item.Name);
-	}
-
-	protected void TreeViewPopupFriend(object o, System.EventArgs args)
-	{
-		Gtk.MenuItem item = o as Gtk.MenuItem;
-		TextAdd(SourceType.Debug, 0, "DEBUG", "friend action: " + item.Name);
-		if (item.Name.Substring(0, 7) == "remove:")
-		{
-			FriendTreeNode friend = null;
-			int foundnum = datastorage.FindFriendsWithKeyStartingWithID(item.Name.Substring(7), out friend);
-			if (foundnum == 1)
-			{
-				int code = toxsharp.ToxFriendDel(friend.key);
-				if (code == 0)
-					StoreDelete(friend);
-			}
-		}
-	}
-
-	protected void TreeViewPopupStranger(object o, System.EventArgs args)
-	{
-		Gtk.MenuItem item = o as Gtk.MenuItem;
-		TextAdd(SourceType.Debug, 0, "DEBUG", "stranger action: " + item.Name);
-		if (item.Name.Substring(0, 7) == "accept:")
-		{
-			string keystr = item.Name.Substring(7);
-			TextAdd(SourceType.Debug, 0, "DEBUG", "stranger action: ACCEPT => [" + keystr + "]");
-			ToxKey key = new ToxKey(keystr);
-			int i = toxsharp.ToxFriendAddNoRequest(key);
-			if (i >= 0)
-			{
-				TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Stranger, key);
-				if (typeid != null)
-					StoreDelete(typeid);
-			}
-		}
-		else if (item.Name.Substring(0, 8) == "decline:")
-		{
-			string id = item.Name.Substring(8);
-			TextAdd(SourceType.Debug, 0, "DEBUG", "stranger action: DECLINE => [" + id + "]");
-		}
-	}
-	
-	protected void StoreDelete(TypeIDTreeNode typeid)
-	{
-		TreeIter parent;
-		if (!storeiterators.GetByTypeRaw(typeid.entryType, out parent))
-			return;
-
-		int num = store.IterNChildren(parent);
-		for(int i = 0; i < num; i++)
-		{
-			TreeIter iter;
-			if (store.IterNthChild(out iter, parent, i))
-			{
-				HolderTreeNode holder = store.GetValue(iter, 0) as HolderTreeNode;
-				if (holder != null)
-				{
-					if (holder.typeid == typeid)
-					{
-						store.Remove(ref iter);
-						datastorage.Del(typeid);
-						break;
-					}
-				}
-			}
-		}
-
-		if (!store.IterHasChild(parent))
-		{
-			store.Remove(ref parent);
-			storeiterators.SetByTypeRaw(typeid.entryType, Gtk.TreeIter.Zero);
-		}
-
-		treeview1.QueueDraw();
-	}
-
-	protected void OnTreeview1ButtonReleaseEvent (object o, Gtk.ButtonReleaseEventArgs args)
-	{
-		// path is wrong here
-		// DumpAction(o, "ButtonUp: " + args.Event.Button + " @ " + args.Event.X + ", " + args.Event.Y);
-
-		int x = (int)args.Event.X, y = (int)args.Event.Y;
-		TreePath path;
-		TreeViewColumn col;
-		if (treeview1.GetPathAtPos(x, y, out path, out col))
-		{
-			DumpAction(o, "ButtonUp: (inside) " + args.Event.Button + ":" + args.Event.Type + " @ " + args.Event.X + ", " + args.Event.Y);
-			if ((args.Event.Button == 1) &&
-			    (args.Event.Type == Gdk.EventType.TwoButtonPress))
-			{
-				TreeIter iter;
-				if (!treeview1.Model.GetIterFromString(out iter, path.ToString()))
-					return;
-
-				HolderTreeNode holder = treeview1.Model.GetValue(iter, 0) as HolderTreeNode;
-				if (holder == null)
-					return;
-
-				TypeIDTreeNode typeid = holder.typeid;
-				NotebookAddPage(typeid);
-			}
-
-			if (args.Event.Button == 3)
-			{
-				TreeIter iter;
-				if (!treeview1.Model.GetIterFromString(out iter, path.ToString()))
-					return;
-
-				HolderTreeNode holder = treeview1.Model.GetValue(iter, 0) as HolderTreeNode;
-				if (holder == null)
-					return;
-
-				TypeIDTreeNode typeid = holder.typeid;
-
-				if (typeid.entryType == TypeIDTreeNode.EntryType.Header)
-					return;
-
-				// friend:
-				// - delete, invite to group
-				// stranger:
-				// - accept, decline
-				// group:
-				// - delete
-
-				if (typeid.entryType == TypeIDTreeNode.EntryType.Friend)
-				{
-					FriendTreeNode friend = typeid as FriendTreeNode;
-					if (friend == null)
-						return;
-					
-					Gtk.Menu menu = new Gtk.Menu();
-
-					Gtk.MenuItem itemfriend = new Gtk.MenuItem("Invite to group");
-					itemfriend.Name = "invite:" + friend.key.str;
-					itemfriend.Sensitive = false;
-					itemfriend.Activated += TreeViewPopupFriend;
-
-					Dictionary<UInt16, TypeIDTreeNode> groups;
-					if (datastorage.GroupEnumerator(out groups) && (groups.Count > 0))
-					{
-						bool gotone = false;
-	
-						Gtk.Menu menugroups = new Gtk.Menu();
-
-						Gtk.MenuItem itemgroup;
-						foreach(KeyValuePair<UInt16, TypeIDTreeNode> pair in groups)
-						{
-							GroupTreeNode group = pair.Value as GroupTreeNode;
-							if (group != null)
-							{
-								gotone = true;
-
-								itemgroup = new Gtk.MenuItem("[" + group.id + "] " + group.name + " (" + group.key.str.Substring(0, 8) + "...)");
-								itemgroup.Name = "invite:" + friend.key.str + ":" + group.key;
-								itemgroup.Activated += TreeViewPopupFriend;
-								itemgroup.Show();
-							}
-						}
-						
-						if (gotone)
-						{
-							itemfriend.Sensitive = gotone;
-							itemfriend.Submenu = menugroups;
-						}
-					}
-
-					itemfriend.Show();
-					menu.Append(itemfriend);
-	
-					Gtk.MenuItem itemremove = new Gtk.MenuItem("Remove from list");
-					itemremove.Name = "remove:" + friend.key.str;
-					itemremove.Activated += TreeViewPopupFriend;
-					itemremove.Show();
-					menu.Append(itemremove);
-		
-					menu.Popup();
-				}
-
-				if (typeid.entryType == TypeIDTreeNode.EntryType.Group)
-					return;
-
-				if (typeid.entryType == TypeIDTreeNode.EntryType.Stranger)
-				{
-					StrangerTreeNode stranger = typeid as StrangerTreeNode;
-					if (stranger == null)
-						return;
-
-					Gtk.Menu menu = new Gtk.Menu();
-					Gtk.MenuItem itemfriend = new Gtk.MenuItem("Accept as friend");
-					itemfriend.Name = "accept:" + stranger.key.str;
-					itemfriend.Activated += TreeViewPopupStranger;
-					itemfriend.Show();
-					menu.Append(itemfriend);
-	
-					Gtk.MenuItem itemgroup = new Gtk.MenuItem("Decline as friend");
-					itemgroup.Name = "decline:" + stranger.key.str;
-					itemgroup.Activated += TreeViewPopupStranger;
-					itemgroup.Show();
-					menu.Append(itemgroup);
-		
-					menu.Popup();
-				}
-			}
-		}
-		else
-		{		
-			// only popup here
-			if (args.Event.Button != 3)
-				return;
-
-			Gtk.Menu menu = new Gtk.Menu();
-			Gtk.MenuItem itemfriend = new Gtk.MenuItem("new friend");
-			itemfriend.Activated += TreeViewPopupNew;
-			itemfriend.Name = "new:friend";
-			itemfriend.Show();
-			menu.Append(itemfriend);
-
-			Gtk.MenuItem itemgroup = new Gtk.MenuItem("new group");
-			itemgroup.Activated += TreeViewPopupNew;
-			itemgroup.Name  = "new:group";
-			itemgroup.Show();
-			menu.Append(itemgroup);
-
-			menu.Popup();
-		}
-	}
-
-	protected void OnTreeview1KeyReleaseEvent (object o, Gtk.KeyReleaseEventArgs args)
-	{
-		// path is right here
-		// DumpAction(o, "KeyUp: " + args.Event.Key + ":" + args.Event.State);
-		if (args.Event.Key == Gdk.Key.Return)
-		{
-			TreeModel model;
-			TreeIter iter;
-			if (treeview1.Selection.GetSelected(out model, out iter))
-			{
-				HolderTreeNode holder = model.GetValue(iter, 0) as HolderTreeNode;
-				if (holder != null)
-				    NotebookAddPage(holder.typeid);
-			}
-		}
-	}
-
 	protected void NotebookAddPage(TypeIDTreeNode typeid)
 	{
 		if (typeid == null)
@@ -523,7 +235,7 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 		    (typeid.entryType != TypeIDTreeNode.EntryType.Group))
 			return;
 
-		SourceType type = typeid.entryType == TypeIDTreeNode.EntryType.Friend ? SourceType.Friend : SourceType.Group;
+		Interfaces.SourceType type = typeid.entryType == TypeIDTreeNode.EntryType.Friend ? Interfaces.SourceType.Friend : Interfaces.SourceType.Group;
 		foreach(ListStoreSourceTypeID liststore in liststorepartial)
 			if ((liststore.type == type) &&
 			    (liststore.id == typeid.id))
@@ -556,5 +268,83 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 		notebook1.CurrentPage = notebook1.NPages - 1; // requires ShowAll before
 
 		Focus = entry1;
+	}
+
+/*
+ *
+ *
+ *
+ */
+
+	protected void DumpAction(object o, string text)
+	{
+		Gtk.TreeView treeview = (Gtk.TreeView)o;
+		Gtk.TreePath path;
+		Gtk.TreeViewColumn col;
+		treeview.GetCursor(out path, out col);
+
+		if (path != null)
+			text += " -- " + path.ToString();
+		if (col != null)
+			text += " :: " + col.ToString();
+		TextAdd(0, 256, "DEBUG", text);
+	}
+
+	protected void OnTreeview1ButtonReleaseEvent (object o, Gtk.ButtonReleaseEventArgs args)
+	{
+		// path is wrong here
+		// DumpAction(o, "ButtonUp: " + args.Event.Button + " @ " + args.Event.X + ", " + args.Event.Y);
+
+		int x = (int)args.Event.X, y = (int)args.Event.Y;
+		TreePath path;
+		TreeViewColumn col;
+		if (treeview1.GetPathAtPos(x, y, out path, out col))
+		{
+			DumpAction(o, "ButtonUp: (inside) " + args.Event.Button + ":" + args.Event.Type + " @ " + args.Event.X + ", " + args.Event.Y);
+
+			TreeIter iter;
+			if (!treeview1.Model.GetIterFromString(out iter, path.ToString()))
+				return;
+
+			HolderTreeNode holder = treeview1.Model.GetValue(iter, 0) as HolderTreeNode;
+			if (holder == null)
+				return;
+
+			TypeIDTreeNode typeid = holder.typeid;
+
+			// DblClk broken in various versions of GTK - fallback to middle click
+			if (((args.Event.Button == 1) &&
+			    (args.Event.Type == Gdk.EventType.TwoButtonPress)) ||
+			    (args.Event.Button == 2))
+			{
+				NotebookAddPage(typeid);
+			}
+
+			popups.TreePopup(typeid, args.Event);
+		}
+		else
+			popups.TreePopup(null, args.Event);
+	}
+
+	protected void OnTreeview1KeyReleaseEvent (object o, Gtk.KeyReleaseEventArgs args)
+	{
+		// path is right here
+		// DumpAction(o, "KeyUp: " + args.Event.Key + ":" + args.Event.State);
+		if (args.Event.Key == Gdk.Key.Return)
+		{
+			TreeModel model;
+			TreeIter iter;
+			if (treeview1.Selection.GetSelected(out model, out iter))
+			{
+				HolderTreeNode holder = model.GetValue(iter, 0) as HolderTreeNode;
+				if (holder != null)
+				    NotebookAddPage(holder.typeid);
+			}
+		}
+	}
+
+	protected void OnTreeview1PopupMenu(object o, Gtk.PopupMenuArgs args)
+	{
+		// pretty much useless? would be nice, align-wise
 	}
 }

@@ -1,6 +1,7 @@
 
 using System;
 using System.Collections.Generic;
+using Gtk;
 
 namespace ToxSharpGui
 {
@@ -29,13 +30,19 @@ namespace ToxSharpGui
 				element = new Dictionary<ushort, TypeIDTreeNode>();
 			}
 		}
-	
+
+		protected Gtk.TreeStore store;
+		protected StoreIterators storeiterators;
+
 		// Dictionary: Type
 		//    Dictionary ID | List
 		protected Dictionary<TypeIDTreeNode.EntryType, DataStorageSub> data;
 
-		public DataStorage()
+		public DataStorage(Gtk.TreeStore store, StoreIterators storeiterators)
 		{
+			this.store = store;
+			this.storeiterators = storeiterators;
+
 			data = new Dictionary<TypeIDTreeNode.EntryType, DataStorageSub>();
 
 			data.Add(TypeIDTreeNode.EntryType.Friend, new DataStorageSubKeyUInt16());
@@ -232,6 +239,38 @@ namespace ToxSharpGui
 			Add(typeid);
 			return HolderTreeNode.Create(typeid);
 		}
+
+		public void StoreDelete(TypeIDTreeNode typeid)
+		{
+			TreeIter parent;
+			if (!storeiterators.GetByTypeRaw(typeid.entryType, out parent))
+				return;
+
+			int num = store.IterNChildren(parent);
+			for(int i = 0; i < num; i++)
+			{
+				TreeIter iter;
+				if (store.IterNthChild(out iter, parent, i))
+				{
+					HolderTreeNode holder = store.GetValue(iter, 0) as HolderTreeNode;
+					if (holder != null)
+					{
+						if (holder.typeid == typeid)
+						{
+							store.Remove(ref iter);
+							Del(typeid);
+							break;
+						}
+					}
+				}
+			}
+
+			if (!store.IterHasChild(parent))
+			{
+				store.Remove(ref parent);
+				storeiterators.SetByTypeRaw(typeid.entryType, Gtk.TreeIter.Zero);
+			}
+		}
 	}
 
 	public class HolderTreeNode : Gtk.TreeNode
@@ -415,9 +454,9 @@ namespace ToxSharpGui
 
 	public class ListStoreSourceTypeID : Gtk.ListStore
 	{
-		public MainWindow.SourceType type;
+		public Interfaces.SourceType type;
 		public UInt16 id;
-		public ListStoreSourceTypeID(MainWindow.SourceType type, UInt16 id, params Type[] args) : base(args)
+		public ListStoreSourceTypeID(Interfaces.SourceType type, UInt16 id, params Type[] args) : base(args)
 		{
 			this.type = type;
 			this.id = id;
