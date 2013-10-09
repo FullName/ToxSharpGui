@@ -374,6 +374,26 @@ namespace ToxSharpGui
 			this.store = store;
 		}
 
+		public bool GetByTypeCreate(TypeIDTreeNode.EntryType type, out Gtk.TreeIter iter)
+		{
+			switch(type)
+			{
+				case TypeIDTreeNode.EntryType.Friend:
+					iter = frienditer;
+					break;
+
+				case TypeIDTreeNode.EntryType.Stranger:
+					iter = strangeriter;
+					break;
+
+				case TypeIDTreeNode.EntryType.Group:
+					iter = groupiter;
+					break;
+			}
+
+			return !iter.Equals(Gtk.TreeIter.Zero);
+		}
+
 		public bool GetByTypeRaw(TypeIDTreeNode.EntryType type, out Gtk.TreeIter iter)
 		{
 			switch(type)

@@ -40,8 +40,7 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 
 		StrangerTreeNode strangernew = new StrangerTreeNode(key, message);
 		HolderTreeNode holder = datastorage.HolderTreeNodeNew(strangernew);
-		store.AppendValues(storeiterators.strangeriter, holder);
-		treeview1.ExpandAll();
+		TreeAdd(holder);
 
 		TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "New friend request: Message is [" + message + "]\n" +
 												 "ID: " + strangernew.key.str);
@@ -141,8 +140,7 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 
 		FriendTreeNode friendnew = new FriendTreeNode((UInt16)id, key, name, online, presence, state);
 		HolderTreeNode holder = datastorage.HolderTreeNodeNew(friendnew);
-		store.AppendValues(storeiterators.frienditer, holder);
-		treeview1.ExpandAll();
+		TreeAdd(holder);
 	}
 
 	public void ToxFriendMessage(int id, string message)
@@ -181,5 +179,19 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 			handle += friend.key.str.Substring(0, 8) + "...";
 
 		TextAdd(Interfaces.SourceType.Friend, friend.id, "ACTION", handle + " " + action);
+	}
+
+/****************************************************************************************/
+/****************************************************************************************/
+/****************************************************************************************/
+
+	public void ToxGroupchatInvite(int friendnumber, ToxKey friend_groupkey)
+	{
+		TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Group chat invite received by friend " + friendnumber + ":\n" + friend_groupkey.str);
+	}
+
+	public void ToxGroupchatMessage(int groupnumber, int friendgroupnumber, string message)
+	{
+		TextAdd(Interfaces.SourceType.Group, (UInt16)groupnumber, "#" + groupnumber + "::" + friendgroupnumber, message);
 	}
 }

@@ -63,6 +63,9 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 			case TypeIDTreeNode.EntryType.Stranger:
 				text = "+?";
 				break;
+			case TypeIDTreeNode.EntryType.Group:
+				text = "";
+				break;
 			default:
 				text = "???";
 				break;
@@ -88,7 +91,7 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 				text = (typeid as HeaderTreeNode).title;
 				break;
 
-						case TypeIDTreeNode.EntryType.Friend:
+			case TypeIDTreeNode.EntryType.Friend:
 				FriendTreeNode friend = typeid as FriendTreeNode;
 				if (friend.name.Length > 0)
 					text = friend.name;
@@ -105,6 +108,15 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 				StrangerTreeNode stranger = typeid as StrangerTreeNode;
 				text = stranger.key.str.Substring(0, 7) + "...";
 				tip = "Message: " + stranger.message + "\nID: " + stranger.key.str;
+				break;
+
+			case TypeIDTreeNode.EntryType.Group:
+				GroupTreeNode group = typeid as GroupTreeNode;
+				text = "Group #" + group.id;
+				if (group.name != null)
+					text += ": " + group.name;
+				if (group.key != null)
+					text += " (" + group.key.str.Substring(0, 8) + "...)";
 				break;
 
 			default:
@@ -205,6 +217,21 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
  *
  *
  */
+
+	public void TreeAdd(HolderTreeNode holder)
+	{
+		if (holder == null)
+			return;
+		if (holder.typeid == null)
+			return;
+
+		TreeIter iter;
+		if (storeiterators.GetByTypeCreate(holder.typeid.entryType, out iter))
+		{
+			store.AppendValues(iter, holder);
+			treeview1.ExpandAll();
+		}
+	}
 
 	public void TextAdd(Interfaces.SourceType type, UInt16 id, string source, string text)
 	{

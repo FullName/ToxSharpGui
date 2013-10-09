@@ -247,10 +247,10 @@ namespace ToxSharpGui
 			return handled;
 		}
 	
-		protected void InputHandle(string text)
+		protected bool InputHandle(string text)
 		{
 			if (text.Length == 0)
-				return;
+				return false;
 	
 			int handled = 0;
 			bool slash = text[0] == '/';
@@ -295,39 +295,52 @@ namespace ToxSharpGui
 					}
 					else if (type == Interfaces.SourceType.Group)
 					{
-						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "TODO: Sending this in this context.");
+						if (toxsharp.ToxGroupchatMessage(id, text))
+						{
+							TextAdd(Interfaces.SourceType.Group, id, toxsharp.ToxNameGet() + " => #" + id, text);
+							handled = 1;
+						}
+						else
+						{
+							TextAdd(Interfaces.SourceType.Group, id, "SYSTEM", "Failed to send message to group.");
+							handled = -1;
+						}
 					}
 					else
 						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Internal error. Sorry!");
 				}
 			}
 
-			if (handled == 1)
-				text = "";
+			return (handled == 1);
 		}
 
-		public void Do(string text, Gdk.Key key)
+		public bool Do(string text, Gdk.Key key)
 		{
 			if (key == Gdk.Key.Up)
 			{
 				// Combobox, keeping the current input unless a different is selected
 				TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "TODO: Command history.");
+				return false;
 			}
 
 			if (key == Gdk.Key.Down)
 			{
 				// Combobox, keeping the current input unless a different is selected
 				TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "TODO: Command history.");
+				return false;
 			}
 
 			if (key == Gdk.Key.Tab)
 			{
 				// Combobox, popping friends, strangers or groups depending on input
 				TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "TODO: Support input on entering an ID.");
+				return false;
 			}
 
 			if (key == Gdk.Key.Return)
-				InputHandle(text);
+				return InputHandle(text);
+
+			return false;
 		}
 	}
 }

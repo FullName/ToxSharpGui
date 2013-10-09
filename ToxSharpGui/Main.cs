@@ -11,6 +11,7 @@ namespace ToxSharpGui
 		public interface IReactions
 		{
 			void TitleUpdate();
+			void TreeAdd(HolderTreeNode holder);
 			void TreeUpdate();
 
 			void ClipboardSend(string text);
@@ -23,20 +24,21 @@ namespace ToxSharpGui
 
 	class MainClass
 	{
-		public static void Main (string[] args)
+		public static void Main(string[] args)
 		{
 			Application.Init();
-			MainWindow win = new MainWindow ();
 
-			ToxSharp toxsharp = new ToxSharp(win);
-			win.toxsharp = toxsharp;
+			ToxSharp toxsharp = new ToxSharp(args);
+
+			MainWindow win = new MainWindow(toxsharp);
+			toxsharp.ToxInit(win);
 
 			int bootstrapres = toxsharp.ToxBootstrap();
 			if (bootstrapres <= 0)
 				return;
 
-			win.TextAdd(Interfaces.SourceType.System , 0, "SYSTEM", "Sent connection requests to " + bootstrapres + " other clients...");
 			win.TitleUpdate();
+			win.TextAdd(Interfaces.SourceType.System , 0, "SYSTEM", "Sent connection requests to " + bootstrapres + " other clients...");
 
 			win.Show();
 			Application.Run();

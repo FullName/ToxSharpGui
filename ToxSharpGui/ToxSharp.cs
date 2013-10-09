@@ -29,6 +29,8 @@ namespace ToxSharpGui
 
 	public interface IToxSharpGroup : IToxSharpBasic
 	{
+		void ToxGroupchatInvite(int friendnumber, ToxKey friend_groupkey);
+		void ToxGroupchatMessage(int groupnumber, int friendgroupnumber, string message);
 	}
 
 	public enum FriendPresenceState { Unknown, Away, Busy, Invalid };
@@ -123,8 +125,9 @@ namespace ToxSharpGui
 		private void toxpollfunc()
 		{
 			bool connected_ui = false;
-			Sys.UInt16 milliseconds = 750;
+			Sys.UInt16 milliseconds = 400;
 			Sys.UInt32 accumulated = 0;
+			Sys.UInt32 accumulated_max = 1600;
 			int res, counter = 3;
 			byte[] data = new byte[0];
 			while(toxpollthreadrequestend == 0)
@@ -174,7 +177,7 @@ namespace ToxSharpGui
 					{
 						/* every so many times, we can't skip tox_do() */
 						accumulated += milliseconds;
-						if (accumulated < 1200)
+						if (accumulated < accumulated_max)
 							continue;
 					}
 					accumulated = 0;
@@ -209,7 +212,24 @@ namespace ToxSharpGui
 		[SRIOp.DllImport("toxcore")]
 		private static extern Sys.IntPtr tox_new(byte ipv6enabled);
 
-		public ToxSharp(IToxSharpBasic cb)
+		public ToxSharp(string[] args)
+		{
+			for(int i = 0; i < args.Length; i++)
+			{
+				if ((args[i] == "-c") && (i + 1 < args.Length))
+				{
+					Sys.Console.WriteLine("Configuration directory: " + args[i + 1]);
+					_ToxConfigHome = args[i + 1];
+				}
+				if ((args[i] == "-f") && (i + 1 < args.Length))
+				{
+					Sys.Console.WriteLine("Data filename: " + args[i + 1]);
+					_ToxConfigData = args[i + 1];
+				}
+			}
+		}
+
+		public void ToxInit(IToxSharpBasic cb)
 		{
 			if (cb != null)
 			{
@@ -231,53 +251,75 @@ namespace ToxSharpGui
 			}
 		}
 	
-		protected string ToxConfigHome()
+		protected string _ToxConfigData;
+		protected string ToxConfigData
 		{
-			// TODO: other systems
-			if (SysEnv.OSVersion.Platform == System.PlatformID.Unix)
+			get
 			{
-				string path = SysEnv.GetEnvironmentVariable("HOME");
-				if (path == null)
-					path = "";
-				else if (path != "")
-				{
-					path += "/.config/tox/";
-					if (!SysIO.Directory.Exists(path))
-						SysIO.Directory.CreateDirectory(path);
-				}
+				if (_ToxConfigData != null)
+					return _ToxConfigData;
 
-				return path;
+				_ToxConfigData = ToxConfigHome + "data";
+				return _ToxConfigData;
 			}
-			else if (SysEnv.OSVersion.Platform == System.PlatformID.Win32NT)
+		}
+
+		protected string _ToxConfigHome;
+		protected string ToxConfigHome
+		{
+			get
 			{
-				string path = SysEnv.GetEnvironmentVariable("USERPROFILE");
-				if (path == null)
-					path = "";
-				else if (path != "")
-				{
-					path += "\\Tox\\";
-					if (!SysIO.Directory.Exists(path))
-						SysIO.Directory.CreateDirectory(path);
-				}
+				if (_ToxConfigHome != null)
+					return _ToxConfigHome;
 
-				return path;
-			}
-			else if (SysEnv.OSVersion.Platform == System.PlatformID.MacOSX)
-			{
-				string path = SysEnv.GetEnvironmentVariable("HOME");
-				if (path == null)
-					path = "";
-				else if (path != "")
+				// TODO: other systems
+				if (SysEnv.OSVersion.Platform == System.PlatformID.Unix)
 				{
-					path += "/Library/Application Support/Tox/";
-					if (!SysIO.Directory.Exists(path))
-						SysIO.Directory.CreateDirectory(path);
-				}
+					string path = SysEnv.GetEnvironmentVariable("HOME");
+					if (path == null)
+						path = "";
+					else if (path != "")
+					{
+						path += "/.config/tox/";
+						if (!SysIO.Directory.Exists(path))
+							SysIO.Directory.CreateDirectory(path);
+					}
 
-				return path;
+					_ToxConfigHome = path;
+				}
+				else if (SysEnv.OSVersion.Platform == System.PlatformID.Win32NT)
+				{
+					string path = SysEnv.GetEnvironmentVariable("USERPROFILE");
+					if (path == null)
+						path = "";
+					else if (path != "")
+					{
+						path += "\\Tox\\";
+						if (!SysIO.Directory.Exists(path))
+							SysIO.Directory.CreateDirectory(path);
+					}
+
+					_ToxConfigHome = path;
+				}
+				else if (SysEnv.OSVersion.Platform == System.PlatformID.MacOSX)
+				{
+					string path = SysEnv.GetEnvironmentVariable("HOME");
+					if (path == null)
+						path = "";
+					else if (path != "")
+					{
+						path += "/Library/Application Support/Tox/";
+						if (!SysIO.Directory.Exists(path))
+							SysIO.Directory.CreateDirectory(path);
+					}
+
+					_ToxConfigHome = path;
+				}
+				else
+					_ToxConfigHome = "";
+
+				return _ToxConfigHome;
 			}
-			else
-				return "";
 		}
 
 		[SRIOp.DllImport("toxcore")]
@@ -287,7 +329,7 @@ namespace ToxSharpGui
 		{
 			try
 			{
-				string filename = ToxConfigHome() + "data";
+				string filename = ToxConfigData;
 				SysIO.FileInfo fsinfo = new SysIO.FileInfo(filename);
 				SysIO.FileStream fs = new SysIO.FileStream(filename, System.IO.FileMode.Open);
 				byte[] space = new byte[fsinfo.Length];
@@ -309,7 +351,7 @@ namespace ToxSharpGui
 
 		public void ToxSave()
 		{
-			string filename = ToxConfigHome() + "data";
+			string filename = ToxConfigData;
 
 			toxmutex.WaitOne();
 			byte[] space = new byte[tox_size(tox)];
@@ -462,7 +504,7 @@ namespace ToxSharpGui
 
 			try
 			{
-				SysIO.FileStream fs = new SysIO.FileStream(ToxConfigHome() + "DHTservers", System.IO.FileMode.Open);
+				SysIO.FileStream fs = new SysIO.FileStream(ToxConfigHome + "DHTservers", System.IO.FileMode.Open);
 				SysIO.StreamReader sr = new SysIO.StreamReader(fs);
 				while(!sr.EndOfStream)
 				{
@@ -639,6 +681,98 @@ namespace ToxSharpGui
 /*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/
+
+		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
+		private static extern int tox_add_groupchat(Sys.IntPtr tox);
+
+		public bool ToxGroupchatAdd(out int id)
+		{
+			toxmutex.WaitOne();
+			id = tox_add_groupchat(tox);
+			toxmutex.ReleaseMutex();
+
+			return id >= 0;
+		}
+
+
+		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
+		private static extern int tox_del_groupchat(Sys.IntPtr tox, int groupnumber);
+
+		public bool ToxGroupchatDel(int groupnumber)
+		{
+			toxmutex.WaitOne();
+			int rc = tox_del_groupchat(tox, groupnumber);
+			toxmutex.ReleaseMutex();
+
+			return rc == 0;
+		}
+
+
+		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
+		private static extern int tox_group_peername(Sys.IntPtr tox, int groupnumber, int peernumber, byte[] name);
+
+		public bool ToxGroupchatPeername(int groupnumber, int peernumber, out string namestr)
+		{
+			byte[] namebin = new byte[NAME_LEN + 1];
+
+			toxmutex.WaitOne();
+			int rc = tox_group_peername(tox, groupnumber, peernumber, namebin);
+			toxmutex.ReleaseMutex();
+
+			namestr = "";
+			if (rc > 0)
+				namestr = CutAtNul(System.Text.Encoding.UTF8.GetString(namebin));
+
+			return rc >= 0;
+		}
+
+
+		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
+		private static extern int tox_invite_friend(Sys.IntPtr tox, int friendnumber, int groupnumber);
+
+		public bool ToxGroupchatInvite(int groupnumber, ToxKey friendkey)
+		{
+			toxmutex.WaitOne();
+			int friendnumber = tox_getfriend_id(tox, friendkey.bin);
+			int rc = -1;
+			if (friendnumber >= 0)
+				rc = tox_invite_friend(tox, friendnumber, groupnumber);
+			toxmutex.ReleaseMutex();
+
+			return rc == 0;
+		}
+
+
+		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
+		private static extern int tox_join_groupchat(Sys.IntPtr tox, int friendnumber, byte[] friend_groupkey);
+
+		public bool ToxGroupchatJoin(int friendnumber, ToxKey friend_groupkey, out int groupnumber)
+		{
+			toxmutex.WaitOne();
+			groupnumber = tox_join_groupchat(tox, friendnumber, friend_groupkey.bin);
+			toxmutex.ReleaseMutex();
+
+			return groupnumber >= 0;
+		}
+
+
+		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
+		private static extern int tox_group_message_send(Sys.IntPtr tox, int groupnumber, byte[] messagebin, Sys.UInt32 length);
+
+		public bool ToxGroupchatMessage(int groupnumber, string messagestr)
+		{
+			byte[] messagebin = System.Text.Encoding.UTF8.GetBytes(messagestr + '\0');
+
+			toxmutex.WaitOne();
+			int rc = tox_group_message_send(tox, groupnumber, messagebin, (Sys.UInt32)messagebin.Length);
+			toxmutex.ReleaseMutex();
+
+			return rc == 0;
+		}
+
+/*****************************************************************************/
+/*****************************************************************************/
+/*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/
@@ -679,7 +813,7 @@ namespace ToxSharpGui
 			if (cbFriend != null)
 			{
 				ToxKey key = new ToxKey(keybinary);
-				cbFriend.ToxFriendAddRequest(key, CutAtNul(System.Text.Encoding.UTF8.GetString(message)));
+				cbFriend.ToxFriendAddRequest(key, CutAtNul(System.Text.Encoding.UTF8.GetString(message, 0, length - 1)));
 			}
 		}
 
@@ -700,7 +834,7 @@ namespace ToxSharpGui
 		protected void ToxCallbackFriendMessage(Sys.IntPtr tox, int id, byte[] message, Sys.UInt16 length, Sys.IntPtr X)
 		{
 			if (cbFriend != null)
-				cbFriend.ToxFriendMessage(id, CutAtNul(System.Text.Encoding.UTF8.GetString(message)));
+				cbFriend.ToxFriendMessage(id, CutAtNul(System.Text.Encoding.UTF8.GetString(message, 0, length - 1)));
 		}
 
 		/*
@@ -720,7 +854,7 @@ namespace ToxSharpGui
 		protected void ToxCallbackFriendAction(Sys.IntPtr tox, int id, byte[] action, Sys.UInt16 length, Sys.IntPtr X)
 		{
 			if (cbFriend != null)
-				cbFriend.ToxFriendAction(id, CutAtNul(System.Text.Encoding.UTF8.GetString(action)));
+				cbFriend.ToxFriendAction(id, CutAtNul(System.Text.Encoding.UTF8.GetString(action, 0, length - 1)));
 		}
 
 		/*
@@ -740,12 +874,62 @@ namespace ToxSharpGui
 		protected void ToxCallbackFriendName(Sys.IntPtr tox, int id, byte[] name, Sys.UInt16 length, Sys.IntPtr X)
 		{
 			if (cbFriend != null)
-				cbFriend.ToxFriendName(id, CutAtNul(System.Text.Encoding.UTF8.GetString(name)));
+				cbFriend.ToxFriendName(id, CutAtNul(System.Text.Encoding.UTF8.GetString(name, 0, length - 1)));
 		}
 
-		//
-		// C1ECE4620571325F8211649B462EC1B3398B87FF13B363ACD682F5A27BC4FD46937EAAF221F2
-		//
+/*****************************************************************************/
+/*****************************************************************************/
+/*****************************************************************************/
+
+		/*
+		 * void callback(Tox *tox, int friendnumber, uint8_t *group_public_key, void *userdata)
+		 *
+		 * void tox_callback_group_invite(Tox *tox,
+		 *                                void (*function)(Tox *tox, int, uint8_t *, void *),
+		 *                                void *userdata);
+		 */
+
+		protected delegate void CallBackDelegateGroupchatInvite(Sys.IntPtr tox, int friendnumber, [SRIOp.MarshalAs(SRIOp.UnmanagedType.LPArray, SizeConst = 38)] byte[] friend_groupkey, Sys.IntPtr X);
+		protected CallBackDelegateGroupchatInvite cbgroupchatinvite;
+
+		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
+		private static extern void tox_callback_group_invite(Sys.IntPtr tox, CallBackDelegateGroupchatInvite cbgroupchatinvite, Sys.IntPtr X);
+
+		protected void ToxCallbackGroupchatInvite(Sys.IntPtr tox, int friendnumber, byte[] friend_groupkeybin, Sys.IntPtr X)
+		{
+			if (cbGroup != null)
+			{
+				ToxKey friend_groupkey = new ToxKey(friend_groupkeybin);
+				cbGroup.ToxGroupchatInvite(friendnumber, friend_groupkey);
+			}
+		}
+
+		/*
+		 * void callback(Tox *tox, int groupnumber, int friendgroupnumber, uint8_t * message, uint16_t length, void *userdata);
+		 *
+		 * void tox_callback_group_message(Tox *tox,
+		 *                              void (*function)(Tox *tox, int, int, uint8_t *, uint16_t, void *),
+		 * 								void *userdata);
+		 */
+
+		protected delegate void CallBackDelegateGroupchatMessage(Sys.IntPtr tox, int groupnumber, int friendgroupnumber,
+									[SRIOp.MarshalAs(SRIOp.UnmanagedType.LPArray, SizeParamIndex = 4)] byte[] message,
+		                                                         Sys.UInt16 length, Sys.IntPtr X);
+		protected CallBackDelegateGroupchatMessage cbgroupchatmessage;
+
+		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
+		private static extern void tox_callback_group_message(Sys.IntPtr tox, CallBackDelegateGroupchatMessage cbgroupchatmessage, Sys.IntPtr X);
+
+		protected void ToxCallbackGroupchatMessage(Sys.IntPtr tox, int groupnumber, int friendgroupnumber, byte[] message, Sys.UInt16 length, Sys.IntPtr X)
+		{
+			if (cbGroup != null)
+				cbGroup.ToxGroupchatMessage(groupnumber, friendgroupnumber, CutAtNul(System.Text.Encoding.UTF8.GetString(message, 0, length - 1)));
+		}
+
+/*****************************************************************************/
+/*****************************************************************************/
+/*****************************************************************************/
+
 		protected void ToxCallbackInit(Sys.IntPtr tox)
 		{
 			cbfriendconnectionstatus = new CallBackDelegateFriendConnectionStatus(ToxCallbackFriendConnectionStatus);
@@ -780,6 +964,21 @@ namespace ToxSharpGui
 
 			toxmutex.WaitOne();
 			tox_callback_namechange(tox, cbfriendname, Sys.IntPtr.Zero);
+			toxmutex.ReleaseMutex();
+
+/*****************************************************************************/
+
+			cbgroupchatinvite = new CallBackDelegateGroupchatInvite(ToxCallbackGroupchatInvite);
+
+			toxmutex.WaitOne();
+			tox_callback_group_invite(tox, cbgroupchatinvite, Sys.IntPtr.Zero);
+			toxmutex.ReleaseMutex();
+
+
+			cbgroupchatmessage = new CallBackDelegateGroupchatMessage(ToxCallbackGroupchatMessage);
+
+			toxmutex.WaitOne();
+			tox_callback_group_message(tox, cbgroupchatmessage, Sys.IntPtr.Zero);
 			toxmutex.ReleaseMutex();
 		}
 

@@ -18,8 +18,9 @@ public partial class MainWindow : Gtk.Window, IToxSharpFriend, IToxSharpGroup, I
 	protected InputHandling inputhandling;
 	protected Popups popups;
 
-	public MainWindow (): base (Gtk.WindowType.Toplevel)
+	public MainWindow (ToxSharp toxsharp): base (Gtk.WindowType.Toplevel)
 	{
+		this.toxsharp = toxsharp;
 		inputhandling = new InputHandling(this, toxsharp, datastorage);
 		popups = new Popups(this, toxsharp, datastorage);
 
@@ -97,7 +98,8 @@ public partial class MainWindow : Gtk.Window, IToxSharpFriend, IToxSharpGroup, I
 
 	protected void OnEntryKeyReleased(object o, Gtk.KeyReleaseEventArgs args)
 	{
-		inputhandling.Do(entry1.Text, args.Event.Key);
+		if (inputhandling.Do(entry1.Text, args.Event.Key))
+			entry1.Text = "";
 	}
 
 /*****************************************************************************/

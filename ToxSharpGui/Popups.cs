@@ -49,7 +49,20 @@ namespace ToxSharpGui
 				return;
 			}
 
-			TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "new something: " + item.Name);
+			if (item.Name == "new:group")
+			{
+				int groupnumber;
+				if (toxsharp.ToxGroupchatAdd(out groupnumber))
+				{
+					GroupTreeNode groupchat = new GroupTreeNode((UInt16)groupnumber, null, null);
+					HolderTreeNode holder = datastorage.HolderTreeNodeNew(groupchat);
+					reactions.TreeAdd(holder);
+				}
+
+				return;
+			}
+
+			TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "Unhandled new something: " + item.Name);
 		}
 
 		public void TreeViewPopupFriend(object o, System.EventArgs args)
@@ -69,6 +82,27 @@ namespace ToxSharpGui
 						reactions.TreeUpdate();
 					}
 				}
+			}
+
+			if (item.Name.Substring(0, 7) == "invite:")
+			{
+				string friendkey_groupid_extra = item.Name.Substring(7);
+				int poscolon2 = friendkey_groupid_extra.IndexOf(':');
+				if (poscolon2 < 0)
+					return;
+
+				string friendkeystr = friendkey_groupid_extra.Substring(0, poscolon2 - 1);
+
+				string groupid_extra = friendkey_groupid_extra.Substring(poscolon2 + 1);
+				int groupid;
+				int poscolon3 = groupid_extra.IndexOf(':');
+				if (poscolon3 > 0)
+					groupid = Convert.ToInt32(groupid_extra.Substring(0, poscolon3 - 1));
+				else
+					groupid = Convert.ToInt32(groupid_extra);
+
+				ToxKey friendkey = new ToxKey(friendkeystr);
+				toxsharp.ToxGroupchatInvite(groupid, friendkey);
 			}
 		}
 
@@ -128,7 +162,7 @@ namespace ToxSharpGui
 						Gtk.MenuItem itemfriend = new Gtk.MenuItem("Invite to group");
 						itemfriend.Name = "invite:" + friend.key.str;
 						itemfriend.Sensitive = false;
-						itemfriend.Activated += TreeViewPopupFriend;
+						// itemfriend.Activated += TreeViewPopupFriend;
 
 						Dictionary<UInt16, TypeIDTreeNode> groups;
 						if (datastorage.GroupEnumerator(out groups) && (groups.Count > 0))
@@ -145,16 +179,26 @@ namespace ToxSharpGui
 								{
 									gotone = true;
 
-									itemgroup = new Gtk.MenuItem("[" + group.id + "] " + group.name + " (" + group.key.str.Substring(0, 8) + "...)");
-									itemgroup.Name = "invite:" + friend.key.str + ":" + group.key;
+									string text = "Group #" + group.id;
+									if (group.name != null)
+										text += " " + group.name;
+									if (group.key != null)
+										text += " (" + group.key.str.Substring(0, 8) + "...)";
+									itemgroup = new Gtk.MenuItem(text);
+									string name = "invite:" + friend.key.str + ":" + group.id;
+									if (group.key != null)
+										name += ":" + group.key.str;
+									itemgroup.Name = name;
 									itemgroup.Activated += TreeViewPopupFriend;
 									itemgroup.Show();
+									menugroups.Append(itemgroup);
 								}
 							}
 
 							if (gotone)
 							{
-								itemfriend.Sensitive = gotone;
+								// TODO: submenu fails to fire on selection
+								itemfriend.Sensitive = true;
 								itemfriend.Submenu = menugroups;
 							}
 						}
