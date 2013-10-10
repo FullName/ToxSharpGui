@@ -6,7 +6,7 @@ namespace ToxSharpGui
 {
 	public class Interfaces
 	{
-		public enum SourceType { Friend, Stranger, Group, System, Debug };
+		public enum SourceType { Friend, Group, System, Debug };
 
 		public interface IReactions
 		{

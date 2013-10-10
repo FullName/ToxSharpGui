@@ -296,7 +296,7 @@ namespace ToxSharpGui
 
 	public class TypeIDTreeNode
 	{
-		public enum EntryType { Header, Friend, Stranger, Group };
+		public enum EntryType { Header, Friend, Stranger, Group, Invitation };
 
 		public EntryType entryType;
 		public UInt16 id;
@@ -365,6 +365,16 @@ namespace ToxSharpGui
 		}
 	}
 
+	public class InvitationTreeNode : KeyTreeNode
+	{
+		public UInt16 inviter;
+
+		public InvitationTreeNode(ToxKey key, UInt16 inviter) : base(EntryType.Invitation, 0, key)
+		{
+			this.inviter = inviter;
+		}
+	}
+
 	public class StoreIterators
 	{
 		protected Gtk.TreeStore store;
@@ -389,6 +399,10 @@ namespace ToxSharpGui
 				case TypeIDTreeNode.EntryType.Group:
 					iter = groupiter;
 					break;
+
+				case TypeIDTreeNode.EntryType.Invitation:
+					iter = invitationiter;
+					break;
 			}
 
 			return !iter.Equals(Gtk.TreeIter.Zero);
@@ -409,6 +423,10 @@ namespace ToxSharpGui
 				case TypeIDTreeNode.EntryType.Group:
 					iter = _groupiter;
 					break;
+
+				case TypeIDTreeNode.EntryType.Invitation:
+					iter = _invitationiter;
+					break;
 			}
 
 			return !iter.Equals(Gtk.TreeIter.Zero);
@@ -422,11 +440,14 @@ namespace ToxSharpGui
 				_strangeriter = iter;
 			if (type == TypeIDTreeNode.EntryType.Group)
 				_groupiter = iter;
+			if (type == TypeIDTreeNode.EntryType.Invitation)
+				_invitationiter = iter;
 		}
 
 		protected Gtk.TreeIter _frienditer;
 		protected Gtk.TreeIter _strangeriter;
 		protected Gtk.TreeIter _groupiter;
+		protected Gtk.TreeIter _invitationiter;
 
 		public Gtk.TreeIter frienditer
 		{
@@ -439,6 +460,8 @@ namespace ToxSharpGui
 						store.MoveBefore(_frienditer, _strangeriter);
 					else if (!_groupiter.Equals(Gtk.TreeIter.Zero))
 						store.MoveBefore(_frienditer, _groupiter);
+					else if (!_invitationiter.Equals(Gtk.TreeIter.Zero))
+						store.MoveBefore(_frienditer, _invitationiter);
 				}
 	
 				return _frienditer;
@@ -454,6 +477,8 @@ namespace ToxSharpGui
 					_strangeriter = store.AppendValues(HolderTreeNode.HeaderNew("Strangers"));
 					if (!_groupiter.Equals(Gtk.TreeIter.Zero))
 						store.MoveBefore(_strangeriter, _groupiter);
+					else if (!_invitationiter.Equals(Gtk.TreeIter.Zero))
+						store.MoveBefore(_strangeriter, _invitationiter);
 				}
 	
 				return _strangeriter;
@@ -466,8 +491,21 @@ namespace ToxSharpGui
 			{
 				if (_groupiter.Equals(Gtk.TreeIter.Zero))
 					_groupiter = store.AppendValues(HolderTreeNode.HeaderNew("Group"));
-	
+				if (!_invitationiter.Equals(Gtk.TreeIter.Zero))
+					store.MoveBefore(_groupiter, _invitationiter);
+
 				return _groupiter;
+			}
+		}
+
+		public Gtk.TreeIter invitationiter
+		{
+			get
+			{
+				if (_invitationiter.Equals(Gtk.TreeIter.Zero))
+					_invitationiter = store.AppendValues(HolderTreeNode.HeaderNew("Invitations"));
+
+				return _invitationiter;
 			}
 		}
 	}
