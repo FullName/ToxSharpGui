@@ -29,7 +29,7 @@ namespace ToxSharpGui
 
 	public interface IToxSharpGroup : IToxSharpBasic
 	{
-		void ToxGroupchatInvite(int friendnumber, ToxKey friend_groupkey);
+		void ToxGroupchatInvite(int friendnumber, string friendname, ToxKey friend_groupkey);
 		void ToxGroupchatMessage(int groupnumber, int friendgroupnumber, string message);
 	}
 
@@ -112,6 +112,16 @@ namespace ToxSharpGui
 		protected Sys.Threading.Mutex toxmutex = null;
 		protected Sys.Threading.Thread toxpollthread = null;
 		public byte toxpollthreadrequestend = 0;
+
+		protected static string ToString(byte[] bin)
+		{
+			return CutAtNul(System.Text.Encoding.UTF8.GetString(bin));
+		}
+
+		protected static byte[] ToBytes(string str)
+		{
+			return System.Text.Encoding.UTF8.GetBytes(str + '\0');
+		}
 
 		[SRIOp.DllImport("toxcore")]
 		private static extern void tox_do(Sys.IntPtr tox);
@@ -899,8 +909,13 @@ namespace ToxSharpGui
 		{
 			if (cbGroup != null)
 			{
+				byte[] namebin = new byte[NAME_LEN + 1];
+
+				// we're already under lock here, as this callback happens inside tox_do()
+				tox_getname(tox, friendnumber, namebin);
+
 				ToxKey friend_groupkey = new ToxKey(friend_groupkeybin);
-				cbGroup.ToxGroupchatInvite(friendnumber, friend_groupkey);
+				cbGroup.ToxGroupchatInvite(friendnumber, ToString(namebin), friend_groupkey);
 			}
 		}
 
@@ -982,7 +997,7 @@ namespace ToxSharpGui
 			toxmutex.ReleaseMutex();
 		}
 
-		string CutAtNul(string data)
+		protected static string CutAtNul(string data)
 		{
 			if (data.Length == 0)
 				return data;

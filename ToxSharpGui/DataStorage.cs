@@ -48,6 +48,7 @@ namespace ToxSharpGui
 			data.Add(TypeIDTreeNode.EntryType.Friend, new DataStorageSubKeyUInt16());
 			data.Add(TypeIDTreeNode.EntryType.Stranger, new DataStorageSubKeyKey());
 			data.Add(TypeIDTreeNode.EntryType.Group, new DataStorageSubKeyUInt16());
+			data.Add(TypeIDTreeNode.EntryType.Invitation, new DataStorageSubKeyKey());
 		}
 
 		public void Add(TypeIDTreeNode typeid)
@@ -70,6 +71,13 @@ namespace ToxSharpGui
 				if ((subkey != null) && (stranger != null))
 					subkey.element.Add(stranger.key, typeid);
 			}
+			else if (typeid.entryType == TypeIDTreeNode.EntryType.Invitation)
+			{
+				DataStorageSubKeyKey subkey = sub as DataStorageSubKeyKey;
+				InvitationTreeNode invite = typeid as InvitationTreeNode;
+				if ((subkey != null) && (invite != null))
+					subkey.element.Add(invite.key, typeid);
+			}
 		}
 
 		public void Del(TypeIDTreeNode typeid)
@@ -91,6 +99,13 @@ namespace ToxSharpGui
 				StrangerTreeNode stranger = typeid as StrangerTreeNode;
 				if ((subkey != null) && (stranger != null))
 					subkey.element.Remove(stranger.key);
+			}
+			else if (typeid.entryType == TypeIDTreeNode.EntryType.Invitation)
+			{
+				DataStorageSubKeyKey subkey = sub as DataStorageSubKeyKey;
+				InvitationTreeNode invite = typeid as InvitationTreeNode;
+				if ((subkey != null) && (invite != null))
+					subkey.element.Remove(invite.key);
 			}
 		}
 
@@ -367,11 +382,13 @@ namespace ToxSharpGui
 
 	public class InvitationTreeNode : KeyTreeNode
 	{
-		public UInt16 inviter;
+		public UInt16 inviterid;
+		public string invitername;
 
-		public InvitationTreeNode(ToxKey key, UInt16 inviter) : base(EntryType.Invitation, 0, key)
+		public InvitationTreeNode(ToxKey key, UInt16 inviterid, string invitername) : base(EntryType.Invitation, 0, key)
 		{
-			this.inviter = inviter;
+			this.inviterid = inviterid;
+			this.invitername = invitername;
 		}
 	}
 

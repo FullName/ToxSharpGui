@@ -185,11 +185,11 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 /****************************************************************************************/
 /****************************************************************************************/
 
-	public void ToxGroupchatInvite(int friendnumber, ToxKey friend_groupkey)
+	public void ToxGroupchatInvite(int friendnumber, string friendname, ToxKey friend_groupkey)
 	{
-		TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Group chat invite received by friend " + friendnumber + ":\n" + friend_groupkey.str);
+		TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Group chat invite received by friend [" + friendnumber + "] " + friendname + ":\n" + friend_groupkey.str);
 
-		InvitationTreeNode invitation = new InvitationTreeNode(friend_groupkey, (UInt16)friendnumber);
+		InvitationTreeNode invitation = new InvitationTreeNode(friend_groupkey, (UInt16)friendnumber, friendname);
 		HolderTreeNode holder = datastorage.HolderTreeNodeNew(invitation);
 		TreeAdd(holder);
 	}

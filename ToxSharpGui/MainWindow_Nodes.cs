@@ -66,6 +66,9 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 			case TypeIDTreeNode.EntryType.Group:
 				text = "";
 				break;
+			case TypeIDTreeNode.EntryType.Invitation:
+				text = "+#?";
+				break;
 			default:
 				text = "???";
 				break;
@@ -116,7 +119,14 @@ public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup
 				if (group.name != null)
 					text += ": " + group.name;
 				if (group.key != null)
-					text += " (" + group.key.str.Substring(0, 8) + "...)";
+					text += "\n(" + group.key.str.Substring(0, 10) + "...)";
+				break;
+
+			case TypeIDTreeNode.EntryType.Invitation:
+				InvitationTreeNode invite = typeid as InvitationTreeNode;
+				text = "#" + invite.id + " by [" + invite.inviterid + "] " + invite.invitername;
+				if (invite.key != null)
+					text += "\n(" + invite.key.str.Substring(0, 10) + "...)";
 				break;
 
 			default:

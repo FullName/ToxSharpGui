@@ -97,7 +97,7 @@ namespace ToxSharpGui
 				UInt16 groupid;
 				int poscolon3 = groupid_extra.IndexOf(':');
 				if (poscolon3 > 0)
-					groupid = Convert.ToUInt16(groupid_extra.Substring(0, poscolon3 - 1));
+					groupid = Convert.ToUInt16(groupid_extra.Substring(0, poscolon3));
 				else
 					groupid = Convert.ToUInt16(groupid_extra);
 
@@ -136,6 +136,48 @@ namespace ToxSharpGui
 			}
 		}
 
+
+		public void TreeViewPopupInvite(object o, System.EventArgs args)
+		{
+			Gtk.MenuItem item = o as Gtk.MenuItem;
+			TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "invite action: " + item.Name);
+			if (item.Name.Substring(0, 7) == "accept:")
+			{
+				int colon2 = item.Name.IndexOf(':', 7);
+				if (colon2 < 8)
+					return;
+
+				int friendnumber;
+				string friendnumstr = item.Name.Substring(7, colon2 - 7);
+				friendnumber = Convert.ToUInt16(friendnumstr);
+
+				string keystr = item.Name.Substring(colon2 + 1);
+				TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "stranger action: ACCEPT => [" + keystr + "]");
+				ToxKey groupkey = new ToxKey(keystr);
+
+				int groupnumber;
+				if (toxsharp.ToxGroupchatJoin(friendnumber, groupkey, out groupnumber))
+				{
+					TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Invitation, groupkey);
+					if (typeid != null)
+					{
+						datastorage.StoreDelete(typeid);
+						reactions.TreeUpdate();
+					}
+
+					GroupTreeNode group = new GroupTreeNode((UInt16)groupnumber, groupkey, null);
+					datastorage.Add(group);
+					HolderTreeNode holder = HolderTreeNode.Create(group);
+					reactions.TreeAdd(holder);
+				}
+			}
+			else if (item.Name.Substring(0, 8) == "decline:")
+			{
+				string id = item.Name.Substring(8);
+				TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "stranger action: DECLINE => [" + id + "]");
+			}
+		}
+
 		public void TreePopup(TypeIDTreeNode typeid, Gdk.EventButton eventbutton)
 		{
 			if (typeid != null)
@@ -148,11 +190,13 @@ namespace ToxSharpGui
 						return;
 
 					// friend:
-					// - delete, invite to group
+					// - delete, invite to group, name, hint
 					// stranger:
 					// - accept, decline
 					// group:
 					// - delete
+					// invite:
+					// - accept, decline
 
 					if (typeid.entryType == TypeIDTreeNode.EntryType.Friend)
 					{
@@ -253,6 +297,28 @@ namespace ToxSharpGui
 						itemgroup.Activated += TreeViewPopupStranger;
 						itemgroup.Show();
 						menu.Append(itemgroup);
+
+						menu.Popup();
+					}
+
+					if (typeid.entryType == TypeIDTreeNode.EntryType.Invitation)
+					{
+						InvitationTreeNode invite = typeid as InvitationTreeNode;
+						if (invite == null)
+							return;
+
+						Gtk.Menu menu = new Gtk.Menu();
+						Gtk.MenuItem inviteaccept = new Gtk.MenuItem("Accept invite");
+						inviteaccept.Name = "accept:" + invite.inviterid + ":" + invite.key.str;
+						inviteaccept.Activated += TreeViewPopupInvite;
+						inviteaccept.Show();
+						menu.Append(inviteaccept);
+
+						Gtk.MenuItem invitedecline = new Gtk.MenuItem("Decline invite");
+						invitedecline.Name = "decline:" + invite.key.str;
+						invitedecline.Activated += TreeViewPopupInvite;
+						invitedecline.Show();
+						menu.Append(invitedecline);
 
 						menu.Popup();
 					}
