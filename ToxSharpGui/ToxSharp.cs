@@ -29,6 +29,7 @@ namespace ToxSharpGui
 
 	public interface IToxSharpGroup : IToxSharpBasic
 	{
+		void ToxGroupchatInit(Sys.UInt16 groupchatnum);
 		void ToxGroupchatInvite(int friendnumber, string friendname, ToxKey friend_groupkey);
 		void ToxGroupchatMessage(int groupnumber, int friendgroupnumber, string message);
 	}
@@ -255,7 +256,7 @@ namespace ToxSharpGui
 			tox = tox_new(1);
 			if (tox != Sys.IntPtr.Zero)
 			{
-				ToxCallbackInit(tox);
+				ToxCallbackInitInternal();
 				ToxLoadInternal();
 				ToxFriendsInitInternal();
 			}
@@ -335,6 +336,9 @@ namespace ToxSharpGui
 		[SRIOp.DllImport("toxcore")]
 		private static extern int tox_load(Sys.IntPtr tox, byte[] bytes, Sys.UInt32 length);		
 
+		[SRIOp.DllImport("toxcore")]
+		private static extern Sys.UInt16 tox_num_groupchats(Sys.IntPtr tox);		
+
 		protected void ToxLoadInternal()
 		{
 			try
@@ -346,7 +350,15 @@ namespace ToxSharpGui
 				fs.Read(space, 0,(int)fsinfo.Length);
 				fs.Close();
 
-				tox_load(tox, space,(Sys.UInt32)fsinfo.Length);
+				tox_load(tox, space, (Sys.UInt32)fsinfo.Length);
+
+				/*
+				 * tox_num_groupchats(...) will throw up as it
+				 * hasn't been accepted in the official tree
+				 */
+				Sys.UInt16 groupchatnum = tox_num_groupchats(tox);
+				if ((groupchatnum > 0) && (cbGroup != null))
+					cbGroup.ToxGroupchatInit(groupchatnum);
 			}
 			catch
 			{
@@ -945,7 +957,7 @@ namespace ToxSharpGui
 /*****************************************************************************/
 /*****************************************************************************/
 
-		protected void ToxCallbackInit(Sys.IntPtr tox)
+		protected void ToxCallbackInitInternal()
 		{
 			cbfriendconnectionstatus = new CallBackDelegateFriendConnectionStatus(ToxCallbackFriendConnectionStatus);
 

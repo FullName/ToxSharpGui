@@ -136,6 +136,36 @@ namespace ToxSharpGui
 			}
 		}
 
+		public void TreeViewPopupGroup(object o, System.EventArgs args)
+		{
+			Gtk.MenuItem item = o as Gtk.MenuItem;
+			TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "group action: " + item.Name);
+			if (item.Name.Substring(0, 7) == "delete:")
+			{
+				int colon2 = item.Name.IndexOf(':', 7);
+				if (colon2 < 8)
+					return;
+
+				int groupnumber;
+				string groupnumstr = item.Name.Substring(7, colon2 - 7);
+				groupnumber = Convert.ToUInt16(groupnumstr);
+
+				ToxKey groupkey = null;
+				string keystr = item.Name.Substring(colon2 + 1);
+				if (keystr.Length > 0)
+					groupkey = new ToxKey(keystr);
+
+				if (toxsharp.ToxGroupchatDel(groupnumber))
+				{
+					TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Group, (UInt16)groupnumber);
+					if (typeid != null)
+					{
+						datastorage.StoreDelete(typeid);
+						reactions.TreeUpdate();
+					}
+				}
+			}
+		}
 
 		public void TreeViewPopupInvite(object o, System.EventArgs args)
 		{
@@ -277,7 +307,22 @@ namespace ToxSharpGui
 					}
 
 					if (typeid.entryType == TypeIDTreeNode.EntryType.Group)
-						return;
+					{
+						GroupTreeNode group = typeid as GroupTreeNode;
+						if (group == null)
+							return;
+
+						Gtk.Menu menu = new Gtk.Menu();
+						Gtk.MenuItem itemdelete = new Gtk.MenuItem("Delete group (membership)");
+						itemdelete.Name = "delete:" + group.id + ":";
+						if (group.key != null)
+							itemdelete.Name += group.key.str;
+						itemdelete.Activated += TreeViewPopupGroup;
+						itemdelete.Show();
+						menu.Append(itemdelete);
+
+						menu.Popup();
+					}
 
 					if (typeid.entryType == TypeIDTreeNode.EntryType.Stranger)
 					{

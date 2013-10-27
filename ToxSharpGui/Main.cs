@@ -8,13 +8,20 @@ namespace ToxSharpGui
 	{
 		public enum SourceType { Friend, Group, System, Debug };
 
+		// independence of GUI toolkit: required reactions
 		public interface IReactions
 		{
+			// main window: title
 			void TitleUpdate();
+
+			// left side: tree
 			void TreeAdd(HolderTreeNode holder);
 			void TreeUpdate();
 
+			// external: clipboard
 			void ClipboardSend(string text);
+
+			// right side: multi-tab
 			bool CurrentTypeID(out SourceType type, out UInt16 id);
 			void TextAdd(SourceType type, UInt16 id, string source, string text);
 
@@ -26,6 +33,9 @@ namespace ToxSharpGui
 	{
 		public static void Main(string[] args)
 		{
+			foreach(string name in System.IO.Directory.EnumerateFiles(".", "*.log"))
+				System.IO.File.Delete(name);
+
 			Application.Init();
 
 			ToxSharp toxsharp = new ToxSharp(args);
