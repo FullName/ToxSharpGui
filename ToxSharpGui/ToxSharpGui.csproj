@@ -66,7 +66,6 @@
   <ItemGroup>
     <Compile Include="gtk-gui\generated.cs" />
     <Compile Include="MainWindow.cs" />
-    <Compile Include="gtk-gui\MainWindow.cs" />
     <Compile Include="Main.cs" />
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="ToxSharp.cs" />
@@ -77,6 +76,8 @@
     <Compile Include="DataStorage.cs" />
     <Compile Include="InputHandling.cs" />
     <Compile Include="Popups.cs" />
+    <Compile Include="gtk-gui\ToxSharpGui.MainWindow.cs" />
+    <Compile Include="Interfaces.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>

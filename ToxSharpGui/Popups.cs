@@ -2,7 +2,9 @@
 using System;
 using System.Collections.Generic;
 
-namespace ToxSharpGui
+using XUI = ToxSharpGui;
+
+namespace ToxSharpBasic
 {
 	public class Popups
 	{
@@ -28,7 +30,7 @@ namespace ToxSharpGui
 			if (item.Name == "new:friend")
 			{
 				string friendnew, friendmsg;
-				InputOneLine dlg = new InputOneLine();
+				XUI.InputOneLine dlg = new XUI.InputOneLine();
 				if (dlg.Do("For this action, an ID is required.\nIt's a string of 78 characters.\nPlease insert it below:", out friendnew))
 				{
 					if (friendnew.Length != 2 * ToxSharp.ID_LEN_BINARY)
@@ -55,7 +57,7 @@ namespace ToxSharpGui
 				if (toxsharp.ToxGroupchatAdd(out groupnumber))
 				{
 					GroupTreeNode groupchat = new GroupTreeNode((UInt16)groupnumber, null, null);
-					HolderTreeNode holder = datastorage.HolderTreeNodeNew(groupchat);
+					XUI.HolderTreeNode holder = datastorage.HolderTreeNodeNew(groupchat);
 					reactions.TreeAdd(holder);
 				}
 
@@ -196,8 +198,7 @@ namespace ToxSharpGui
 					}
 
 					GroupTreeNode group = new GroupTreeNode((UInt16)groupnumber, groupkey, null);
-					datastorage.Add(group);
-					HolderTreeNode holder = HolderTreeNode.Create(group);
+					XUI.HolderTreeNode holder = datastorage.HolderTreeNodeNew(group);
 					reactions.TreeAdd(holder);
 				}
 			}
@@ -393,4 +394,3 @@ namespace ToxSharpGui
 		}
 	}
 }
-

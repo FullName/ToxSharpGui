@@ -6,14 +6,14 @@ using SysACL = System.Security.AccessControl;
 using SRIOp = Sys.Runtime.InteropServices; // DllImport
 using SysEnv = Sys.Environment;
 
-namespace ToxSharpGui
+namespace ToxSharpBasic
 {
 	public interface IToxSharpBasic
 	{
 		void ToxConnected(bool state);
 	}
 
-	public interface IToxSharpFriend : IToxSharpBasic
+	public interface IToxSharpFriend
 	{
 		void ToxFriendAddRequest(ToxKey key, string message);
 
@@ -27,7 +27,7 @@ namespace ToxSharpGui
 		void ToxFriendAction(int friendId, string action);
 	}
 
-	public interface IToxSharpGroup : IToxSharpBasic
+	public interface IToxSharpGroup
 	{
 		void ToxGroupchatInit(Sys.UInt16 groupchatnum);
 		void ToxGroupchatInvite(int friendnumber, string friendname, ToxKey friend_groupkey);
@@ -105,9 +105,9 @@ namespace ToxSharpGui
 		public const int ID_LEN_BINARY = 38;
 		public const int NAME_LEN = 128;
 
-		protected IToxSharpBasic cbBasic = null;
-		protected IToxSharpFriend cbFriend = null;
-		protected IToxSharpGroup cbGroup = null;
+		protected IToxSharpBasic cbbasic = null;
+		protected IToxSharpFriend cbfriend = null;
+		protected IToxSharpGroup cbgroup = null;
 
 		protected Sys.IntPtr tox = Sys.IntPtr.Zero;
 		protected Sys.Threading.Mutex toxmutex = null;
@@ -168,12 +168,13 @@ namespace ToxSharpGui
 
 				if (res == 1)
 				{
-					/* tox_wait() mustn't change anything inside tox,
-					 * else we would need locking here, which would
-					 * completely destroy the point of the exercise */
-					Sys.Console.Write(toxpollthreadrequestend.ToString());
+					// Sys.Console.Write(toxpollthreadrequestend.ToString());
+
 					try
 					{
+						/* tox_wait_execute() mustn't change anything inside tox,
+						 * else we would need locking here, which would
+						 * completely destroy the point of the exercise */
 						res = tox_wait_execute(tox, data, length, milliseconds);
 					}
 					catch
@@ -194,7 +195,7 @@ namespace ToxSharpGui
 					accumulated = 0;
 				}
 
-				// wait() not working: sleep "hard"
+				// wait() not working: sleep "hard" 250ms
 				if (res == -1)
 					Sys.Threading.Thread.Sleep(250000);
 
@@ -209,8 +210,8 @@ namespace ToxSharpGui
 					if (connected_tox != connected_ui)
 					{
 						connected_ui = connected_tox;
-						if (cbBasic != null)
-							cbBasic.ToxConnected(connected_tox);
+						if (cbbasic != null)
+							cbbasic.ToxConnected(connected_tox);
 					}
 				}
 			}
@@ -240,14 +241,11 @@ namespace ToxSharpGui
 			}
 		}
 
-		public void ToxInit(IToxSharpBasic cb)
+		public void ToxInit(IToxSharpBasic cbbasic, IToxSharpFriend cbfriend, IToxSharpGroup cbgroup)
 		{
-			if (cb != null)
-			{
-				cbBasic = cb;
-				cbFriend = cb as IToxSharpFriend;
-				cbGroup = cb as IToxSharpGroup;
-			}
+			this.cbbasic = cbbasic;
+			this.cbfriend = cbfriend;
+			this.cbgroup = cbgroup;
 
 			toxmutex = new Sys.Threading.Mutex();
 			if (toxmutex == null)
@@ -261,7 +259,20 @@ namespace ToxSharpGui
 				ToxFriendsInitInternal();
 			}
 		}
-	
+
+		public void ToxStopAndSave()
+		{
+			if (toxpollthreadrequestend == 0)
+				toxpollthreadrequestend = 1;
+
+			uint tries = 50;
+			while ((toxpollthreadrequestend < 2) && (tries-- > 0))
+				System.Threading.Thread.Sleep(100);
+
+			if (toxpollthreadrequestend == 2)
+				ToxSave();
+		}
+
 		protected string _ToxConfigData;
 		protected string ToxConfigData
 		{
@@ -357,8 +368,8 @@ namespace ToxSharpGui
 				 * hasn't been accepted in the official tree
 				 */
 				Sys.UInt16 groupchatnum = tox_num_groupchats(tox);
-				if ((groupchatnum > 0) && (cbGroup != null))
-					cbGroup.ToxGroupchatInit(groupchatnum);
+				if ((groupchatnum > 0) && (cbgroup != null))
+					cbgroup.ToxGroupchatInit(groupchatnum);
 			}
 			catch
 			{
@@ -445,10 +456,10 @@ namespace ToxSharpGui
 				state = new byte[lenwithzero];
 			tox_copy_statusmessage(tox, i, state, lenwithzero);
 
-			if (cbFriend != null)
+			if (cbfriend != null)
 			{
 				ToxKey key = new ToxKey(keybin);
-				cbFriend.ToxFriendInit(i, key, CutAtNul(System.Text.Encoding.UTF8.GetString(name)),
+				cbfriend.ToxFriendInit(i, key, CutAtNul(System.Text.Encoding.UTF8.GetString(name)),
 				                       1 == tox_get_friend_connectionstatus(tox, i), presence,
 						               CutAtNul(System.Text.Encoding.UTF8.GetString(state)));
 			}
@@ -814,8 +825,8 @@ namespace ToxSharpGui
 
 		protected void ToxCallbackFriendConnectionStatus(Sys.IntPtr tox, int id, byte state, Sys.IntPtr X)
 		{
-			if (cbFriend != null)
-				cbFriend.ToxFriendConnected(id, state != 0);
+			if (cbfriend != null)
+				cbfriend.ToxFriendConnected(id, state != 0);
 		}
 
 		/*
@@ -832,10 +843,10 @@ namespace ToxSharpGui
 
 		protected void ToxCallbackFriendAddRequest(byte[] keybinary, byte[] message, Sys.UInt16 length, Sys.IntPtr X)
 		{
-			if (cbFriend != null)
+			if (cbfriend != null)
 			{
 				ToxKey key = new ToxKey(keybinary);
-				cbFriend.ToxFriendAddRequest(key, CutAtNul(System.Text.Encoding.UTF8.GetString(message, 0, length - 1)));
+				cbfriend.ToxFriendAddRequest(key, CutAtNul(System.Text.Encoding.UTF8.GetString(message, 0, length - 1)));
 			}
 		}
 
@@ -855,8 +866,8 @@ namespace ToxSharpGui
 
 		protected void ToxCallbackFriendMessage(Sys.IntPtr tox, int id, byte[] message, Sys.UInt16 length, Sys.IntPtr X)
 		{
-			if (cbFriend != null)
-				cbFriend.ToxFriendMessage(id, CutAtNul(System.Text.Encoding.UTF8.GetString(message, 0, length - 1)));
+			if (cbfriend != null)
+				cbfriend.ToxFriendMessage(id, CutAtNul(System.Text.Encoding.UTF8.GetString(message, 0, length - 1)));
 		}
 
 		/*
@@ -875,8 +886,8 @@ namespace ToxSharpGui
 
 		protected void ToxCallbackFriendAction(Sys.IntPtr tox, int id, byte[] action, Sys.UInt16 length, Sys.IntPtr X)
 		{
-			if (cbFriend != null)
-				cbFriend.ToxFriendAction(id, CutAtNul(System.Text.Encoding.UTF8.GetString(action, 0, length - 1)));
+			if (cbfriend != null)
+				cbfriend.ToxFriendAction(id, CutAtNul(System.Text.Encoding.UTF8.GetString(action, 0, length - 1)));
 		}
 
 		/*
@@ -895,8 +906,8 @@ namespace ToxSharpGui
 
 		protected void ToxCallbackFriendName(Sys.IntPtr tox, int id, byte[] name, Sys.UInt16 length, Sys.IntPtr X)
 		{
-			if (cbFriend != null)
-				cbFriend.ToxFriendName(id, CutAtNul(System.Text.Encoding.UTF8.GetString(name, 0, length - 1)));
+			if (cbfriend != null)
+				cbfriend.ToxFriendName(id, CutAtNul(System.Text.Encoding.UTF8.GetString(name, 0, length - 1)));
 		}
 
 /*****************************************************************************/
@@ -919,7 +930,7 @@ namespace ToxSharpGui
 
 		protected void ToxCallbackGroupchatInvite(Sys.IntPtr tox, int friendnumber, byte[] friend_groupkeybin, Sys.IntPtr X)
 		{
-			if (cbGroup != null)
+			if (cbgroup != null)
 			{
 				byte[] namebin = new byte[NAME_LEN + 1];
 
@@ -927,7 +938,7 @@ namespace ToxSharpGui
 				tox_getname(tox, friendnumber, namebin);
 
 				ToxKey friend_groupkey = new ToxKey(friend_groupkeybin);
-				cbGroup.ToxGroupchatInvite(friendnumber, ToString(namebin), friend_groupkey);
+				cbgroup.ToxGroupchatInvite(friendnumber, ToString(namebin), friend_groupkey);
 			}
 		}
 
@@ -949,8 +960,8 @@ namespace ToxSharpGui
 
 		protected void ToxCallbackGroupchatMessage(Sys.IntPtr tox, int groupnumber, int friendgroupnumber, byte[] message, Sys.UInt16 length, Sys.IntPtr X)
 		{
-			if (cbGroup != null)
-				cbGroup.ToxGroupchatMessage(groupnumber, friendgroupnumber, CutAtNul(System.Text.Encoding.UTF8.GetString(message, 0, length - 1)));
+			if (cbgroup != null)
+				cbgroup.ToxGroupchatMessage(groupnumber, friendgroupnumber, CutAtNul(System.Text.Encoding.UTF8.GetString(message, 0, length - 1)));
 		}
 
 /*****************************************************************************/

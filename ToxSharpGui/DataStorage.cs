@@ -3,9 +3,204 @@ using System;
 using System.Collections.Generic;
 using Gtk;
 
-namespace ToxSharpGui
+using XUI = ToxSharpGui;
+
+namespace ToxSharpBasic
 {
-	public class DataStorage
+	public class TypeIDTreeNode
+	{
+		public enum EntryType { Header, Friend, Stranger, Group, Invitation };
+
+		public EntryType entryType;
+		public UInt16 id;
+
+		public TypeIDTreeNode(EntryType entryType, UInt16 id)
+		{
+			this.entryType = entryType;
+			this.id = id;
+		}
+
+		public virtual UInt16 Check()
+		{
+			return 0;
+		}
+
+		public virtual string Text()
+		{
+			return null;
+		}
+
+		public virtual string TooltipText()
+		{
+			return null;
+		}
+	}
+
+	public class HeaderTreeNode : TypeIDTreeNode
+	{
+		public string title;
+		
+		public HeaderTreeNode(EntryType type) : base(EntryType.Header, (UInt16)type)
+		{
+			switch(type)
+			{
+				case EntryType.Friend:
+					title = "Friends";
+					break;
+				case EntryType.Stranger:
+					title = "Strangers";
+					break;
+				case EntryType.Group:
+					title = "Groups";
+					break;
+				case EntryType.Invitation:
+					title = "Invites";
+					break;
+				default:
+					title = "???";
+					break;
+			}
+		}
+
+		public override string Text()
+		{
+			return title;
+		}
+	}
+
+	public class KeyTreeNode : TypeIDTreeNode
+	{
+		public ToxKey key;
+
+		public KeyTreeNode(EntryType entrytype, UInt16 id, ToxKey key) : base(entrytype, id)
+		{
+			this.key = key;
+		}
+	}
+
+	public class FriendTreeNode : KeyTreeNode
+	{
+		public string name;
+		public bool online;
+		public FriendPresenceState presence;	// enum
+		public string state;	// text
+
+		public FriendTreeNode(UInt16 id, ToxKey key, string name, bool online, FriendPresenceState presence, string state) : base(EntryType.Friend, id, key)
+		{
+			this.name = name;
+			this.online = online;
+			this.presence = presence;
+			this.state = state;
+		}
+
+		public override UInt16 Check()
+		{
+			return online ? (UInt16)2 : (UInt16)1;
+		}
+
+		public override string Text()
+		{
+			return name;
+		}
+
+		public override string TooltipText()
+		{
+			string res = name;
+			if (state != null)
+				res += " (" + state + ")";
+			if (presence != FriendPresenceState.Invalid)
+				res += " - " + FriendPresenceStateToString(presence);
+			if (key != null)
+				res += "\n[" + key.str + "]";
+
+			return res;
+		}
+
+		protected static List<string> _FriendPresenceStateToString;
+
+		public static string FriendPresenceStateToString(FriendPresenceState state)
+		{
+			if (_FriendPresenceStateToString == null)
+			{
+				_FriendPresenceStateToString = new List<string>(4);
+				_FriendPresenceStateToString.Add("unknown");
+				_FriendPresenceStateToString.Add("away");
+				_FriendPresenceStateToString.Add("busy");
+				_FriendPresenceStateToString.Add("invalid");
+			}
+
+			if ((int)state < _FriendPresenceStateToString.Capacity)
+				return _FriendPresenceStateToString[(int)state];
+			else
+				return _FriendPresenceStateToString[3];
+		}
+	}
+
+	public class StrangerTreeNode : KeyTreeNode
+	{
+		public string message;
+		
+		public StrangerTreeNode(ToxKey key, string message) : base(EntryType.Stranger, 0, key)
+		{
+			this.message = message;
+		}
+
+		public override string Text()
+		{
+			return "[" + key.str.Substring(0, 8) + "...]";
+		}
+
+		public override string TooltipText()
+		{
+			string res = "[" + key.str + "]";
+			if ((message != null) && (message.Length > 0))
+				res += "\nMessage" + message;
+
+			return res;
+		}
+	}
+
+	public class GroupTreeNode : KeyTreeNode
+	{
+		public string name;
+
+		public GroupTreeNode(UInt16 id, ToxKey key, string name) : base(EntryType.Group, id, key)
+		{
+			this.name = name;
+		}
+
+		public override string Text()
+		{
+			string res = "[" + id + "]";
+			if ((name != null) && (name.Length > 0))
+				res += " " + name;
+
+			return res;
+		}
+	}
+
+	public class InvitationTreeNode : KeyTreeNode
+	{
+		public UInt16 inviterid;
+		public string invitername;
+
+		public InvitationTreeNode(ToxKey key, UInt16 inviterid, string invitername) : base(EntryType.Invitation, 0, key)
+		{
+			this.inviterid = inviterid;
+			this.invitername = invitername;
+		}
+
+		public override string Text()
+		{
+			string res = "[" + inviterid + "]";
+			if ((invitername != null) && (invitername.Length > 0))
+				res += " " + invitername;
+
+			return res;
+		}
+	}
+
+	public class DataStorage : Interfaces.IDataReactions
 	{
 		protected class DataStorageSub
 		{
@@ -51,7 +246,7 @@ namespace ToxSharpGui
 			data.Add(TypeIDTreeNode.EntryType.Invitation, new DataStorageSubKeyKey());
 		}
 
-		public void Add(TypeIDTreeNode typeid)
+		protected void Add(TypeIDTreeNode typeid)
 		{
 			DataStorageSub sub;
 			if (!data.TryGetValue(typeid.entryType, out sub))
@@ -80,7 +275,7 @@ namespace ToxSharpGui
 			}
 		}
 
-		public void Del(TypeIDTreeNode typeid)
+		public void Delete(TypeIDTreeNode typeid)
 		{
 			DataStorageSub sub;
 			if (!data.TryGetValue(typeid.entryType, out sub))
@@ -249,10 +444,10 @@ namespace ToxSharpGui
 			return true;
 		}
 
-		public HolderTreeNode HolderTreeNodeNew(TypeIDTreeNode typeid)
+		public XUI.HolderTreeNode HolderTreeNodeNew(TypeIDTreeNode typeid)
 		{
 			Add(typeid);
-			return HolderTreeNode.Create(typeid);
+			return XUI.HolderTreeNode.Create(typeid);
 		}
 
 		public void StoreDelete(TypeIDTreeNode typeid)
@@ -267,13 +462,13 @@ namespace ToxSharpGui
 				TreeIter iter;
 				if (store.IterNthChild(out iter, parent, i))
 				{
-					HolderTreeNode holder = store.GetValue(iter, 0) as HolderTreeNode;
+					XUI.HolderTreeNode holder = store.GetValue(iter, 0) as XUI.HolderTreeNode;
 					if (holder != null)
 					{
 						if (holder.typeid == typeid)
 						{
 							store.Remove(ref iter);
-							Del(typeid);
+							Delete(typeid);
 							break;
 						}
 					}
@@ -285,110 +480,6 @@ namespace ToxSharpGui
 				store.Remove(ref parent);
 				storeiterators.SetByTypeRaw(typeid.entryType, Gtk.TreeIter.Zero);
 			}
-		}
-	}
-
-	public class HolderTreeNode : Gtk.TreeNode
-	{
-		public TypeIDTreeNode typeid;
-
-		protected HolderTreeNode(TypeIDTreeNode typeid)
-		{
-			this.typeid = typeid;
-		}
-
-		public static HolderTreeNode Create(TypeIDTreeNode typeid)
-		{
-			return new HolderTreeNode(typeid);
-		}
-
-		public static HolderTreeNode HeaderNew(string text)
-		{
-			TypeIDTreeNode typeid = new HeaderTreeNode(text);
-			return HolderTreeNode.Create(typeid);
-		}
-	}
-
-	public class TypeIDTreeNode
-	{
-		public enum EntryType { Header, Friend, Stranger, Group, Invitation };
-
-		public EntryType entryType;
-		public UInt16 id;
-
-		public TypeIDTreeNode(EntryType entryType, UInt16 id)
-		{
-			this.entryType = entryType;
-			this.id = id;
-		}
-
-	}
-
-	public class HeaderTreeNode : TypeIDTreeNode
-	{
-		public string title;
-		
-		public HeaderTreeNode(string title) : base(EntryType.Header, 0)
-		{
-			this.title = title;
-		}
-	}
-
-	public class KeyTreeNode : TypeIDTreeNode
-	{
-		public ToxKey key;
-
-		public KeyTreeNode(EntryType entrytype, UInt16 id, ToxKey key) : base(entrytype, id)
-		{
-			this.key = key;
-		}
-	}
-
-	public class FriendTreeNode : KeyTreeNode
-	{
-		public string name;
-		public bool online;
-		public FriendPresenceState presence;	// enum
-		public string state;	// text
-
-		public FriendTreeNode(UInt16 id, ToxKey key, string name, bool online, FriendPresenceState presence, string state) : base(EntryType.Friend, id, key)
-		{
-			this.name = name;
-			this.online = online;
-			this.presence = presence;
-			this.state = state;
-		}
-	}
-
-	public class StrangerTreeNode : KeyTreeNode
-	{
-		public string message;
-		
-		public StrangerTreeNode(ToxKey key, string message) : base(EntryType.Stranger, 0, key)
-		{
-			this.message = message;
-		}
-	}
-
-	public class GroupTreeNode : KeyTreeNode
-	{
-		public string name;
-
-		public GroupTreeNode(UInt16 id, ToxKey key, string name) : base(EntryType.Group, id, key)
-		{
-			this.name = name;
-		}
-	}
-
-	public class InvitationTreeNode : KeyTreeNode
-	{
-		public UInt16 inviterid;
-		public string invitername;
-
-		public InvitationTreeNode(ToxKey key, UInt16 inviterid, string invitername) : base(EntryType.Invitation, 0, key)
-		{
-			this.inviterid = inviterid;
-			this.invitername = invitername;
 		}
 	}
 
@@ -472,7 +563,7 @@ namespace ToxSharpGui
 			{
 				if (_frienditer.Equals(Gtk.TreeIter.Zero))
 				{
-					_frienditer = store.AppendValues(HolderTreeNode.HeaderNew("Friends"));
+					_frienditer = store.AppendValues(XUI.HolderTreeNode.HeaderNew(TypeIDTreeNode.EntryType.Friend));
 					if (!_strangeriter.Equals(Gtk.TreeIter.Zero))
 						store.MoveBefore(_frienditer, _strangeriter);
 					else if (!_groupiter.Equals(Gtk.TreeIter.Zero))
@@ -491,7 +582,7 @@ namespace ToxSharpGui
 			{
 				if (_strangeriter.Equals(Gtk.TreeIter.Zero))
 				{
-					_strangeriter = store.AppendValues(HolderTreeNode.HeaderNew("Strangers"));
+					_strangeriter = store.AppendValues(XUI.HolderTreeNode.HeaderNew(TypeIDTreeNode.EntryType.Stranger));
 					if (!_groupiter.Equals(Gtk.TreeIter.Zero))
 						store.MoveBefore(_strangeriter, _groupiter);
 					else if (!_invitationiter.Equals(Gtk.TreeIter.Zero))
@@ -507,7 +598,7 @@ namespace ToxSharpGui
 			get
 			{
 				if (_groupiter.Equals(Gtk.TreeIter.Zero))
-					_groupiter = store.AppendValues(HolderTreeNode.HeaderNew("Group"));
+					_groupiter = store.AppendValues(XUI.HolderTreeNode.HeaderNew(TypeIDTreeNode.EntryType.Group));
 				if (!_invitationiter.Equals(Gtk.TreeIter.Zero))
 					store.MoveBefore(_groupiter, _invitationiter);
 
@@ -520,7 +611,7 @@ namespace ToxSharpGui
 			get
 			{
 				if (_invitationiter.Equals(Gtk.TreeIter.Zero))
-					_invitationiter = store.AppendValues(HolderTreeNode.HeaderNew("Invitations"));
+					_invitationiter = store.AppendValues(XUI.HolderTreeNode.HeaderNew(TypeIDTreeNode.EntryType.Invitation));
 
 				return _invitationiter;
 			}

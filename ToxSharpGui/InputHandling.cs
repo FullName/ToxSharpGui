@@ -1,7 +1,7 @@
 
 using System;
 
-namespace ToxSharpGui
+namespace ToxSharpBasic
 {
 	public class InputHandling
 	{

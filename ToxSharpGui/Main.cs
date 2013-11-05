@@ -2,33 +2,10 @@
 using System;
 using Gtk;
 
-namespace ToxSharpGui
+using ToxSharpGui;
+
+namespace ToxSharpBasic
 {
-	public class Interfaces
-	{
-		public enum SourceType { Friend, Group, System, Debug };
-
-		// independence of GUI toolkit: required reactions
-		public interface IReactions
-		{
-			// main window: title
-			void TitleUpdate();
-
-			// left side: tree
-			void TreeAdd(HolderTreeNode holder);
-			void TreeUpdate();
-
-			// external: clipboard
-			void ClipboardSend(string text);
-
-			// right side: multi-tab
-			bool CurrentTypeID(out SourceType type, out UInt16 id);
-			void TextAdd(SourceType type, UInt16 id, string source, string text);
-
-			void Quit();
-		}
-	}
-
 	class MainClass
 	{
 		public static void Main(string[] args)
@@ -41,7 +18,7 @@ namespace ToxSharpGui
 			ToxSharp toxsharp = new ToxSharp(args);
 
 			MainWindow win = new MainWindow(toxsharp);
-			toxsharp.ToxInit(win);
+			toxsharp.ToxInit(win, win, win);
 
 			int bootstrapres = toxsharp.ToxBootstrap();
 			if (bootstrapres <= 0)
