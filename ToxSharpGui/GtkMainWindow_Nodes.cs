@@ -5,22 +5,188 @@ using Gtk;
 
 using ToxSharpBasic;
 
-namespace ToxSharpGui
+namespace ToxSharpGTK
 {
-	public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup */
+	public class StoreIterators
 	{
-		protected DataStorage _datastorage;
-		protected DataStorage datastorage
+		protected TreeStore store;
+
+		public StoreIterators(TreeStore store)
+		{
+			this.store = store;
+		}
+
+		public bool GetByTypeCreate(TypeIDTreeNode.EntryType type, out TreeIter iter)
+		{
+			switch(type)
+			{
+				case TypeIDTreeNode.EntryType.Friend:
+					iter = frienditer;
+					break;
+
+				case TypeIDTreeNode.EntryType.Stranger:
+					iter = strangeriter;
+					break;
+
+				case TypeIDTreeNode.EntryType.Group:
+					iter = groupiter;
+					break;
+
+				case TypeIDTreeNode.EntryType.Invitation:
+					iter = invitationiter;
+					break;
+			}
+
+			return !iter.Equals(TreeIter.Zero);
+		}
+
+		public bool GetByTypeRaw(TypeIDTreeNode.EntryType type, out TreeIter iter)
+		{
+			switch(type)
+			{
+				case TypeIDTreeNode.EntryType.Friend:
+					iter = _frienditer;
+					break;
+					
+				case TypeIDTreeNode.EntryType.Stranger:
+					iter = _strangeriter;
+					break;
+
+				case TypeIDTreeNode.EntryType.Group:
+					iter = _groupiter;
+					break;
+
+				case TypeIDTreeNode.EntryType.Invitation:
+					iter = _invitationiter;
+					break;
+			}
+
+			return !iter.Equals(TreeIter.Zero);
+		}
+
+		public void SetByTypeRaw(TypeIDTreeNode.EntryType type, TreeIter iter)
+		{
+			if (type == TypeIDTreeNode.EntryType.Friend)
+				_frienditer = iter;
+			if (type == TypeIDTreeNode.EntryType.Stranger)
+				_strangeriter = iter;
+			if (type == TypeIDTreeNode.EntryType.Group)
+				_groupiter = iter;
+			if (type == TypeIDTreeNode.EntryType.Invitation)
+				_invitationiter = iter;
+		}
+
+		protected TreeIter _frienditer;
+		protected TreeIter _strangeriter;
+		protected TreeIter _groupiter;
+		protected TreeIter _invitationiter;
+
+		public TreeIter frienditer
 		{
 			get
 			{
-				if (_datastorage == null)
-					_datastorage = new DataStorage(store, storeiterators);
-
-				return _datastorage;
+				if (_frienditer.Equals(TreeIter.Zero))
+				{
+					_frienditer = store.AppendValues(HolderTreeNode.HeaderNew(TypeIDTreeNode.EntryType.Friend));
+					if (!_strangeriter.Equals(TreeIter.Zero))
+						store.MoveBefore(_frienditer, _strangeriter);
+					else if (!_groupiter.Equals(TreeIter.Zero))
+						store.MoveBefore(_frienditer, _groupiter);
+					else if (!_invitationiter.Equals(TreeIter.Zero))
+						store.MoveBefore(_frienditer, _invitationiter);
+				}
+	
+				return _frienditer;
 			}
 		}
 
+		public TreeIter strangeriter
+		{
+			get
+			{
+				if (_strangeriter.Equals(TreeIter.Zero))
+				{
+					_strangeriter = store.AppendValues(HolderTreeNode.HeaderNew(TypeIDTreeNode.EntryType.Stranger));
+					if (!_groupiter.Equals(TreeIter.Zero))
+						store.MoveBefore(_strangeriter, _groupiter);
+					else if (!_invitationiter.Equals(TreeIter.Zero))
+						store.MoveBefore(_strangeriter, _invitationiter);
+				}
+	
+				return _strangeriter;
+			}
+		}
+	
+		public TreeIter groupiter
+		{
+			get
+			{
+				if (_groupiter.Equals(TreeIter.Zero))
+					_groupiter = store.AppendValues(HolderTreeNode.HeaderNew(TypeIDTreeNode.EntryType.Group));
+				if (!_invitationiter.Equals(TreeIter.Zero))
+					store.MoveBefore(_groupiter, _invitationiter);
+
+				return _groupiter;
+			}
+		}
+
+		public TreeIter invitationiter
+		{
+			get
+			{
+				if (_invitationiter.Equals(TreeIter.Zero))
+					_invitationiter = store.AppendValues(HolderTreeNode.HeaderNew(TypeIDTreeNode.EntryType.Invitation));
+
+				return _invitationiter;
+			}
+		}
+
+		public void Delete(TypeIDTreeNode typeid)
+		{
+			TreeIter parent;
+			if (!GetByTypeRaw(typeid.entryType, out parent))
+				return;
+
+			int num = store.IterNChildren(parent);
+			for(int i = 0; i < num; i++)
+			{
+				TreeIter iter;
+				if (store.IterNthChild(out iter, parent, i))
+				{
+					HolderTreeNode holder = store.GetValue(iter, 0) as HolderTreeNode;
+					if (holder != null)
+					{
+						if (holder.typeid == typeid)
+						{
+							store.Remove(ref iter);
+							Delete(typeid);
+							break;
+						}
+					}
+				}
+			}
+
+			if (!store.IterHasChild(parent))
+			{
+				store.Remove(ref parent);
+				SetByTypeRaw(typeid.entryType, TreeIter.Zero);
+			}
+		}
+	}
+
+	public class ListStoreSourceTypeID : Gtk.ListStore
+	{
+		public Interfaces.SourceType type;
+		public UInt16 id;
+		public ListStoreSourceTypeID(Interfaces.SourceType type, UInt16 id, params Type[] args) : base(args)
+		{
+			this.type = type;
+			this.id = id;
+		}
+	}
+
+	public partial class GtkMainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup */
+	{
 		protected Gtk.TreeStore _store;
 		protected Gtk.TreeStore store
 		{
@@ -45,7 +211,7 @@ namespace ToxSharpGui
 			}
 		}
 
-		private void ExtractMark(Gtk.TreeViewColumn column, Gtk.CellRenderer cell, Gtk.TreeModel model, Gtk.TreeIter iter)
+		private void ExtractMark(Gtk.TreeViewColumn column, Gtk.CellRenderer cell, Gtk.TreeModel model, TreeIter iter)
 		{
 			HolderTreeNode holder = model.GetValue(iter, 0) as HolderTreeNode;
 			if (holder == null)
@@ -66,80 +232,43 @@ namespace ToxSharpGui
 					text = "+?";
 					break;
 				case TypeIDTreeNode.EntryType.Group:
-					text = "";
+					text = "#";
 					break;
 				case TypeIDTreeNode.EntryType.Invitation:
 					text = "+#?";
 					break;
 				default:
-					text = "???";
+					text = "??";
 					break;
 			}
 	        
 			(cell as Gtk.CellRendererText).Text = text;
 		}
 
-		private void ExtractPerson(Gtk.TreeViewColumn column, Gtk.CellRenderer cell, Gtk.TreeModel model, Gtk.TreeIter iter)
+		private void ExtractPerson(Gtk.TreeViewColumn column, Gtk.CellRenderer cell, Gtk.TreeModel model, TreeIter iter)
 		{
 			HolderTreeNode holder = model.GetValue(iter, 0) as HolderTreeNode;
 			if (holder == null)
 				return;
 
 			TypeIDTreeNode typeid = holder.typeid;
+		
+			// string tip = null;
 
-			string text = null;
-			string tip = null;
-			string color = "black";
-			switch (typeid.entryType)
+			(cell as Gtk.CellRendererText).Text = typeid.Text();
+			ushort check = typeid.Check();
+			switch(check)
 			{
-				case TypeIDTreeNode.EntryType.Header:
-					text = (typeid as HeaderTreeNode).title;
+				case 1:
+					(cell as Gtk.CellRendererText).Foreground = "red";
 					break;
-
-				case TypeIDTreeNode.EntryType.Friend:
-					FriendTreeNode friend = typeid as FriendTreeNode;
-					if (friend.name.Length > 0)
-						text = friend.name;
-					else
-						text = "{" + friend.key.str.Substring(0, 8) + "...}";
-
-					if (friend.state.Length > 0)
-						text += " (" + friend.state + ")";
-
-					color = friend.online ? "green" : "red";
+				case 2:
+					(cell as Gtk.CellRendererText).Foreground = "green";
 					break;
-
-				case TypeIDTreeNode.EntryType.Stranger:
-					StrangerTreeNode stranger = typeid as StrangerTreeNode;
-					text = stranger.key.str.Substring(0, 7) + "...";
-					tip = "Message: " + stranger.message + "\nID: " + stranger.key.str;
-					break;
-
-				case TypeIDTreeNode.EntryType.Group:
-					GroupTreeNode group = typeid as GroupTreeNode;
-					text = "Group #" + group.id;
-					if (group.name != null)
-						text += ": " + group.name;
-					if (group.key != null)
-						text += "\n(" + group.key.str.Substring(0, 10) + "...)";
-					break;
-
-				case TypeIDTreeNode.EntryType.Invitation:
-					InvitationTreeNode invite = typeid as InvitationTreeNode;
-					text = "#" + invite.id + " by [" + invite.inviterid + "] " + invite.invitername;
-					if (invite.key != null)
-						text += "\n(" + invite.key.str.Substring(0, 10) + "...)";
-					break;
-
 				default:
-					text = "<undefined>";
+					(cell as Gtk.CellRendererText).Foreground = "black";
 					break;
 			}
-	        
-			(cell as Gtk.CellRendererText).Text = text;
-			(cell as Gtk.CellRendererText).Foreground = color;
-	//		if(tip != null)
-	//			(cell as Gtk.CellRendererText).Tooltip = tip;
 		}
 
 		protected Gtk.ListStore _liststoreall;
@@ -230,27 +359,31 @@ namespace ToxSharpGui
 	 *
 	 */
 
-		public void TreeAdd(HolderTreeNode holder)
+		public void TreeAdd(TypeIDTreeNode typeid)
 		{
-			if (holder == null)
+			if (typeid == null)
 				return;
-			if (holder.typeid == null)
-				return;
+
+			HolderTreeNode holder = new HolderTreeNode(typeid);
 
 			TreeIter iter;
 			if (storeiterators.GetByTypeCreate(holder.typeid.entryType, out iter))
 			{
 				store.AppendValues(iter, holder);
 				treeview1.ExpandAll();
+				treeview1.QueueDraw();
 			}
 		}
 
 		public void TreeDel(TypeIDTreeNode typeid)
 		{
+			storeiterators.Delete(typeid);
+			treeview1.QueueDraw();
 		}
 
 		public void TreeUpdate(TypeIDTreeNode typeid)
 		{
+			// potentially update Holder if Mark/Text/Tip moves there
 			treeview1.QueueDraw();
 		}
 

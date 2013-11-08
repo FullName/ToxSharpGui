@@ -100,7 +100,7 @@ namespace ToxSharpBasic
 		}
 	}
 
-	public class ToxSharp
+	public class ToxInterface
 	{
 		public const int ID_LEN_BINARY = 38;
 		public const int NAME_LEN = 128;
@@ -224,7 +224,7 @@ namespace ToxSharpBasic
 		[SRIOp.DllImport("toxcore")]
 		private static extern Sys.IntPtr tox_new(byte ipv6enabled);
 
-		public ToxSharp(string[] args)
+		public ToxInterface(string[] args)
 		{
 			for(int i = 0; i < args.Length; i++)
 			{

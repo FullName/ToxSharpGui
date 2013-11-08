@@ -1,6 +1,7 @@
+
 using System;
 
-namespace ToxSharpGui
+namespace ToxSharpGTK
 {
 	public partial class InputOneLine : Gtk.Dialog
 	{

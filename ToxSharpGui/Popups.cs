@@ -2,26 +2,24 @@
 using System;
 using System.Collections.Generic;
 
-using XUI = ToxSharpGui;
-
 namespace ToxSharpBasic
 {
 	public class Popups
 	{
-		protected Interfaces.IReactions reactions;
-		protected ToxSharp toxsharp;
-		protected DataStorage datastorage;
+		protected ToxInterface toxsharp;
+		protected Interfaces.IUIReactions uireactions;
+		protected Interfaces.IDataReactions datareactions;
 
-		public Popups(Interfaces.IReactions reactions, ToxSharp toxsharp, DataStorage datastorage)
+		public Popups(ToxInterface toxsharp, Interfaces.IUIReactions uireactions, Interfaces.IDataReactions datareactions)
 		{
-			this.reactions = reactions;
 			this.toxsharp = toxsharp;
-			this.datastorage = datastorage;
+			this.uireactions = uireactions;
+			this.datareactions = datareactions;
 		}
 
 		protected void TextAdd(Interfaces.SourceType type, UInt16 id, string source, string text)
 		{
-			reactions.TextAdd(type, id, source, text);
+			uireactions.TextAdd(type, id, source, text);
 		}
 
 		public void TreeViewPopupNew(object o, System.EventArgs args)
@@ -29,23 +27,21 @@ namespace ToxSharpBasic
 			Gtk.MenuItem item = o as Gtk.MenuItem;
 			if (item.Name == "new:friend")
 			{
-				string friendnew, friendmsg;
-				XUI.InputOneLine dlg = new XUI.InputOneLine();
-				if (dlg.Do("For this action, an ID is required.\nIt's a string of 78 characters.\nPlease insert it below:", out friendnew))
-				{
-					if (friendnew.Length != 2 * ToxSharp.ID_LEN_BINARY)
-						return;
+				string descID = "For this action, an ID is required.\nIt's a string of 78 characters.\nPlease insert it below:";
+				string descMsg = "You can add a message to your request:";
+				string friendkeystr, friendmsg;
+				if (!uireactions.AskIDMessage(descID, descMsg, out friendkeystr, out friendmsg))
+					return;
 
-					if (dlg.Do("You can add a message to your request:", out friendmsg))
-					{
-						ToxKey friendkey = new ToxKey(friendnew);
-						int friendid = toxsharp.ToxFriendAdd(friendkey, friendmsg);
-						if (friendid >= 0)
-						{
-							TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "Friend request sent to " + friendkey.str + ".");
-							toxsharp.ToxFriendInit(friendid);
-						}
-					}
+				if (friendkeystr.Length != 2 * ToxInterface.ID_LEN_BINARY)
+					return;
+
+				ToxKey friendkey = new ToxKey(friendkeystr);
+				int friendid = toxsharp.ToxFriendAdd(friendkey, friendmsg);
+				if (friendid >= 0)
+				{
+					TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "Friend request sent to " + friendkey.str + ".");
+					toxsharp.ToxFriendInit(friendid);
 				}
 
 				return;
@@ -57,8 +53,8 @@ namespace ToxSharpBasic
 				if (toxsharp.ToxGroupchatAdd(out groupnumber))
 				{
 					GroupTreeNode groupchat = new GroupTreeNode((UInt16)groupnumber, null, null);
-					XUI.HolderTreeNode holder = datastorage.HolderTreeNodeNew(groupchat);
-					reactions.TreeAdd(holder);
+					datareactions.Add(groupchat);
+					uireactions.TreeAdd(groupchat);
 				}
 
 				return;
@@ -74,14 +70,14 @@ namespace ToxSharpBasic
 			if (item.Name.Substring(0, 7) == "remove:")
 			{
 				FriendTreeNode friend = null;
-				int foundnum = datastorage.FindFriendsWithKeyStartingWithID(item.Name.Substring(7), out friend);
+				int foundnum = datareactions.FindFriendsWithKeyStartingWithID(item.Name.Substring(7), out friend);
 				if (foundnum == 1)
 				{
 					int code = toxsharp.ToxFriendDel(friend.key);
 					if (code == 0)
 					{
-						datastorage.StoreDelete(friend);
-						reactions.TreeUpdate();
+						datareactions.Delete(friend);
+						uireactions.TreeDel(friend);
 					}
 				}
 			}
@@ -123,11 +119,11 @@ namespace ToxSharpBasic
 				int i = toxsharp.ToxFriendAddNoRequest(key);
 				if (i >= 0)
 				{
-					TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Stranger, key);
+					TypeIDTreeNode typeid = datareactions.Find(TypeIDTreeNode.EntryType.Stranger, key);
 					if (typeid != null)
 					{
-						datastorage.StoreDelete(typeid);
-						reactions.TreeUpdate();
+						datareactions.Delete(typeid);
+						uireactions.TreeDel(typeid);
 					}
 				}
 			}
@@ -151,19 +147,19 @@ namespace ToxSharpBasic
 				int groupnumber;
 				string groupnumstr = item.Name.Substring(7, colon2 - 7);
 				groupnumber = Convert.ToUInt16(groupnumstr);
-
+/*
 				ToxKey groupkey = null;
 				string keystr = item.Name.Substring(colon2 + 1);
 				if (keystr.Length > 0)
 					groupkey = new ToxKey(keystr);
-
+*/
 				if (toxsharp.ToxGroupchatDel(groupnumber))
 				{
-					TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Group, (UInt16)groupnumber);
+					TypeIDTreeNode typeid = datareactions.Find(TypeIDTreeNode.EntryType.Group, (UInt16)groupnumber);
 					if (typeid != null)
 					{
-						datastorage.StoreDelete(typeid);
-						reactions.TreeUpdate();
+						datareactions.Delete(typeid);
+						uireactions.TreeDel(typeid);
 					}
 				}
 			}
@@ -190,16 +186,16 @@ namespace ToxSharpBasic
 				int groupnumber;
 				if (toxsharp.ToxGroupchatJoin(friendnumber, groupkey, out groupnumber))
 				{
-					TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Invitation, groupkey);
+					TypeIDTreeNode typeid = datareactions.Find(TypeIDTreeNode.EntryType.Invitation, groupkey);
 					if (typeid != null)
 					{
-						datastorage.StoreDelete(typeid);
-						reactions.TreeUpdate();
+						datareactions.Delete(typeid);
+						uireactions.TreeDel(typeid);
 					}
 
 					GroupTreeNode group = new GroupTreeNode((UInt16)groupnumber, groupkey, null);
-					XUI.HolderTreeNode holder = datastorage.HolderTreeNodeNew(group);
-					reactions.TreeAdd(holder);
+					datareactions.Add(group);
+					uireactions.TreeAdd(group);
 				}
 			}
 			else if (item.Name.Substring(0, 8) == "decline:")
@@ -244,7 +240,7 @@ namespace ToxSharpBasic
 						bool submenu = false;
 
 						Dictionary<UInt16, TypeIDTreeNode> groups;
-						if (datastorage.GroupEnumerator(out groups) && (groups.Count > 0))
+						if (datareactions.GroupEnumerator(out groups) && (groups.Count > 0))
 						{
 							bool gotone = false;
 

@@ -2,13 +2,24 @@
 using System;
 using System.Collections.Generic;
 
-using ToxSharpBasic;
-
-namespace ToxSharpGui
+namespace ToxSharpBasic
 {
-	public partial class MainWindow /* : Gtk.Window, IToxSharpFriend, IToxSharpGroup */
+	public class ToxGlue : IToxSharpBasic, IToxSharpFriend, IToxSharpGroup
 	{
-		public ToxSharp toxsharp;
+		protected ToxInterface toxsharp = null;
+		protected Interfaces.IUIReactions uireactions = null;
+		protected Interfaces.IDataReactions datareactions = null;
+
+		public ToxGlue()
+		{
+		}
+
+		public void Init(ToxInterface toxsharp, Interfaces.IUIReactions uireactions, Interfaces.IDataReactions datareactions)
+		{
+			this.toxsharp = toxsharp;
+			this.uireactions = uireactions;
+			this.datareactions = datareactions;
+		}
 
 		protected bool connected = false;
 
@@ -19,36 +30,36 @@ namespace ToxSharpGui
 			string text = state ? "Up" : "Down";
 
 			int friendsonline, friendstotal;
-			datastorage.FriendCount(out friendsonline, out friendstotal);
+			datareactions.FriendCount(out friendsonline, out friendstotal);
 
 			if (friendstotal > 0)
 				text += " | F: " + friendsonline + " on, " + friendstotal + " total";
 
-			ConnectState(state, text);
+			uireactions.ConnectState(state, text);
 		}
 
 		public void ToxFriendAddRequest(ToxKey key, string message)
 		{
-			TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Stranger, key);
+			TypeIDTreeNode typeid = datareactions.Find(TypeIDTreeNode.EntryType.Stranger, key);
 			if (typeid != null)
 			{
 				StrangerTreeNode strangerexisting = typeid as StrangerTreeNode;
 				if (strangerexisting != null)
 				{
 					strangerexisting.message = message;
-					treeview1.QueueDraw();
+					uireactions.TreeUpdate(strangerexisting);
 		
-					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Updated friend request: Message is [" + message + "]\n" +
+					uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Updated friend request: Message is [" + message + "]\n" +
 															 "ID: " + strangerexisting.key.str);
 					return;
 				}
 			}
 
 			StrangerTreeNode strangernew = new StrangerTreeNode(key, message);
-			HolderTreeNode holder = datastorage.HolderTreeNodeNew(strangernew);
-			TreeAdd(holder);
+			datareactions.Add(strangernew);
+			uireactions.TreeAdd(strangernew);
 
-			TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "New friend request: Message is [" + message + "]\n" +
+			uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "New friend request: Message is [" + message + "]\n" +
 													 "ID: " + strangernew.key.str);
 		}
 			
@@ -65,7 +76,7 @@ namespace ToxSharpGui
 				FriendPresenceStateToString.Add("invalid");
 			}
 			
-			TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
+			TypeIDTreeNode typeid = datareactions.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
 			if (typeid == null)
 				return;
 
@@ -78,12 +89,12 @@ namespace ToxSharpGui
 			else
 				friend.state = FriendPresenceStateToString[3];
 
-			treeview1.QueueDraw();
+			uireactions.TreeUpdate(typeid);
 		}
 
 		public void ToxFriendPresenceState(int id, string state)
 		{
-			TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
+			TypeIDTreeNode typeid = datareactions.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
 			if (typeid == null)
 				return;
 
@@ -92,12 +103,12 @@ namespace ToxSharpGui
 				return;
 
 			friend.state = state;
-			treeview1.QueueDraw();
+			uireactions.TreeUpdate(typeid);
 		}
 
 		public void ToxFriendName(int id, string name)
 		{
-			TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
+			TypeIDTreeNode typeid = datareactions.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
 			if (typeid == null)
 				return;
 
@@ -106,12 +117,12 @@ namespace ToxSharpGui
 				return;
 
 			friend.name = name;
-			treeview1.QueueDraw();
+			uireactions.TreeUpdate(typeid);
 		}
 
 		public void ToxFriendConnected(int id, bool connected)
 		{
-			TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
+			TypeIDTreeNode typeid = datareactions.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
 			if (typeid == null)
 				return;
 
@@ -120,14 +131,14 @@ namespace ToxSharpGui
 				return;
 
 			friend.online = connected;
-			treeview1.QueueDraw();
+			uireactions.TreeUpdate(typeid);
 
-			ToxConnected(checkbutton1.Active);
+			ToxConnected(connected);
 		}
 
 		public void ToxFriendInit(int id, ToxKey key, string name, bool online, FriendPresenceState presence, string state)
 		{
-			TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
+			TypeIDTreeNode typeid = datareactions.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
 			if (typeid != null)
 			{
 				FriendTreeNode friendexisting = typeid as FriendTreeNode;
@@ -139,19 +150,19 @@ namespace ToxSharpGui
 					friendexisting.presence = presence;
 					friendexisting.state = state;
 
-					treeview1.QueueDraw();
+					uireactions.TreeUpdate(typeid);
 					return;
 				}
 			}
 
 			FriendTreeNode friendnew = new FriendTreeNode((UInt16)id, key, name, online, presence, state);
-			HolderTreeNode holder = datastorage.HolderTreeNodeNew(friendnew);
-			TreeAdd(holder);
+			datareactions.Add(friendnew);
+			uireactions.TreeAdd(friendnew);
 		}
 
 		public void ToxFriendMessage(int id, string message)
 		{
-			TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
+			TypeIDTreeNode typeid = datareactions.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
 			if (typeid == null)
 				return;
 
@@ -165,12 +176,12 @@ namespace ToxSharpGui
 			else
 				handle += friend.key.str.Substring(0, 8) + "...";
 
-			TextAdd(Interfaces.SourceType.Friend, friend.id, handle, message);
+			uireactions.TextAdd(Interfaces.SourceType.Friend, friend.id, handle, message);
 		}
 
 		public void ToxFriendAction(int id, string action)
 		{
-			TypeIDTreeNode typeid = datastorage.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
+			TypeIDTreeNode typeid = datareactions.Find(TypeIDTreeNode.EntryType.Friend, (UInt16)id);
 			if (typeid == null)
 				return;
 
@@ -184,7 +195,7 @@ namespace ToxSharpGui
 			else
 				handle += friend.key.str.Substring(0, 8) + "...";
 
-			TextAdd(Interfaces.SourceType.Friend, friend.id, "ACTION", handle + " " + action);
+			uireactions.TextAdd(Interfaces.SourceType.Friend, friend.id, "ACTION", handle + " " + action);
 		}
 
 	/****************************************************************************************/
@@ -196,23 +207,23 @@ namespace ToxSharpGui
 			for(UInt16 i = 0; i < groupchatnum; i++)
 			{
 				GroupTreeNode group = new GroupTreeNode(i, null, null);
-				HolderTreeNode holder = datastorage.HolderTreeNodeNew(group);
-				TreeAdd(holder);
+				datareactions.Add(group);
+				uireactions.TreeAdd(group);
 			}
 		}
 
 		public void ToxGroupchatInvite(int friendnumber, string friendname, ToxKey friend_groupkey)
 		{
-			TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Group chat invite received by friend [" + friendnumber + "] " + friendname + ":\n" + friend_groupkey.str);
+			uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Group chat invite received by friend [" + friendnumber + "] " + friendname + ":\n" + friend_groupkey.str);
 
 			InvitationTreeNode invitation = new InvitationTreeNode(friend_groupkey, (UInt16)friendnumber, friendname);
-			HolderTreeNode holder = datastorage.HolderTreeNodeNew(invitation);
-			TreeAdd(holder);
+			datareactions.Add(invitation);
+			uireactions.TreeAdd(invitation);
 		}
 
 		public void ToxGroupchatMessage(int groupnumber, int friendgroupnumber, string message)
 		{
-			TextAdd(Interfaces.SourceType.Group, (UInt16)groupnumber, "#" + groupnumber + " - " + friendgroupnumber, message);
+			uireactions.TextAdd(Interfaces.SourceType.Group, (UInt16)groupnumber, "#" + groupnumber + " - " + friendgroupnumber, message);
 		}
 	}
 }

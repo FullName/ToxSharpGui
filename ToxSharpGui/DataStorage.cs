@@ -1,9 +1,6 @@
 
 using System;
 using System.Collections.Generic;
-using Gtk;
-
-using XUI = ToxSharpGui;
 
 namespace ToxSharpBasic
 {
@@ -226,18 +223,12 @@ namespace ToxSharpBasic
 			}
 		}
 
-		protected Gtk.TreeStore store;
-		protected StoreIterators storeiterators;
-
 		// Dictionary: Type
 		//    Dictionary ID | List
 		protected Dictionary<TypeIDTreeNode.EntryType, DataStorageSub> data;
 
-		public DataStorage(Gtk.TreeStore store, StoreIterators storeiterators)
+		public DataStorage()
 		{
-			this.store = store;
-			this.storeiterators = storeiterators;
-
 			data = new Dictionary<TypeIDTreeNode.EntryType, DataStorageSub>();
 
 			data.Add(TypeIDTreeNode.EntryType.Friend, new DataStorageSubKeyUInt16());
@@ -246,7 +237,7 @@ namespace ToxSharpBasic
 			data.Add(TypeIDTreeNode.EntryType.Invitation, new DataStorageSubKeyKey());
 		}
 
-		protected void Add(TypeIDTreeNode typeid)
+		public void Add(TypeIDTreeNode typeid)
 		{
 			DataStorageSub sub;
 			if (!data.TryGetValue(typeid.entryType, out sub))
@@ -442,190 +433,6 @@ namespace ToxSharpBasic
 
 			groups = subactual.element;
 			return true;
-		}
-
-		public XUI.HolderTreeNode HolderTreeNodeNew(TypeIDTreeNode typeid)
-		{
-			Add(typeid);
-			return XUI.HolderTreeNode.Create(typeid);
-		}
-
-		public void StoreDelete(TypeIDTreeNode typeid)
-		{
-			TreeIter parent;
-			if (!storeiterators.GetByTypeRaw(typeid.entryType, out parent))
-				return;
-
-			int num = store.IterNChildren(parent);
-			for(int i = 0; i < num; i++)
-			{
-				TreeIter iter;
-				if (store.IterNthChild(out iter, parent, i))
-				{
-					XUI.HolderTreeNode holder = store.GetValue(iter, 0) as XUI.HolderTreeNode;
-					if (holder != null)
-					{
-						if (holder.typeid == typeid)
-						{
-							store.Remove(ref iter);
-							Delete(typeid);
-							break;
-						}
-					}
-				}
-			}
-
-			if (!store.IterHasChild(parent))
-			{
-				store.Remove(ref parent);
-				storeiterators.SetByTypeRaw(typeid.entryType, Gtk.TreeIter.Zero);
-			}
-		}
-	}
-
-	public class StoreIterators
-	{
-		protected Gtk.TreeStore store;
-
-		public StoreIterators(Gtk.TreeStore store)
-		{
-			this.store = store;
-		}
-
-		public bool GetByTypeCreate(TypeIDTreeNode.EntryType type, out Gtk.TreeIter iter)
-		{
-			switch(type)
-			{
-				case TypeIDTreeNode.EntryType.Friend:
-					iter = frienditer;
-					break;
-
-				case TypeIDTreeNode.EntryType.Stranger:
-					iter = strangeriter;
-					break;
-
-				case TypeIDTreeNode.EntryType.Group:
-					iter = groupiter;
-					break;
-
-				case TypeIDTreeNode.EntryType.Invitation:
-					iter = invitationiter;
-					break;
-			}
-
-			return !iter.Equals(Gtk.TreeIter.Zero);
-		}
-
-		public bool GetByTypeRaw(TypeIDTreeNode.EntryType type, out Gtk.TreeIter iter)
-		{
-			switch(type)
-			{
-				case TypeIDTreeNode.EntryType.Friend:
-					iter = _frienditer;
-					break;
-					
-				case TypeIDTreeNode.EntryType.Stranger:
-					iter = _strangeriter;
-					break;
-
-				case TypeIDTreeNode.EntryType.Group:
-					iter = _groupiter;
-					break;
-
-				case TypeIDTreeNode.EntryType.Invitation:
-					iter = _invitationiter;
-					break;
-			}
-
-			return !iter.Equals(Gtk.TreeIter.Zero);
-		}
-
-		public void SetByTypeRaw(TypeIDTreeNode.EntryType type, Gtk.TreeIter iter)
-		{
-			if (type == TypeIDTreeNode.EntryType.Friend)
-				_frienditer = iter;
-			if (type == TypeIDTreeNode.EntryType.Stranger)
-				_strangeriter = iter;
-			if (type == TypeIDTreeNode.EntryType.Group)
-				_groupiter = iter;
-			if (type == TypeIDTreeNode.EntryType.Invitation)
-				_invitationiter = iter;
-		}
-
-		protected Gtk.TreeIter _frienditer;
-		protected Gtk.TreeIter _strangeriter;
-		protected Gtk.TreeIter _groupiter;
-		protected Gtk.TreeIter _invitationiter;
-
-		public Gtk.TreeIter frienditer
-		{
-			get
-			{
-				if (_frienditer.Equals(Gtk.TreeIter.Zero))
-				{
-					_frienditer = store.AppendValues(XUI.HolderTreeNode.HeaderNew(TypeIDTreeNode.EntryType.Friend));
-					if (!_strangeriter.Equals(Gtk.TreeIter.Zero))
-						store.MoveBefore(_frienditer, _strangeriter);
-					else if (!_groupiter.Equals(Gtk.TreeIter.Zero))
-						store.MoveBefore(_frienditer, _groupiter);
-					else if (!_invitationiter.Equals(Gtk.TreeIter.Zero))
-						store.MoveBefore(_frienditer, _invitationiter);
-				}
-	
-				return _frienditer;
-			}
-		}
-
-		public Gtk.TreeIter strangeriter
-		{
-			get
-			{
-				if (_strangeriter.Equals(Gtk.TreeIter.Zero))
-				{
-					_strangeriter = store.AppendValues(XUI.HolderTreeNode.HeaderNew(TypeIDTreeNode.EntryType.Stranger));
-					if (!_groupiter.Equals(Gtk.TreeIter.Zero))
-						store.MoveBefore(_strangeriter, _groupiter);
-					else if (!_invitationiter.Equals(Gtk.TreeIter.Zero))
-						store.MoveBefore(_strangeriter, _invitationiter);
-				}
-	
-				return _strangeriter;
-			}
-		}
-	
-		public Gtk.TreeIter groupiter
-		{
-			get
-			{
-				if (_groupiter.Equals(Gtk.TreeIter.Zero))
-					_groupiter = store.AppendValues(XUI.HolderTreeNode.HeaderNew(TypeIDTreeNode.EntryType.Group));
-				if (!_invitationiter.Equals(Gtk.TreeIter.Zero))
-					store.MoveBefore(_groupiter, _invitationiter);
-
-				return _groupiter;
-			}
-		}
-
-		public Gtk.TreeIter invitationiter
-		{
-			get
-			{
-				if (_invitationiter.Equals(Gtk.TreeIter.Zero))
-					_invitationiter = store.AppendValues(XUI.HolderTreeNode.HeaderNew(TypeIDTreeNode.EntryType.Invitation));
-
-				return _invitationiter;
-			}
-		}
-	}
-
-	public class ListStoreSourceTypeID : Gtk.ListStore
-	{
-		public Interfaces.SourceType type;
-		public UInt16 id;
-		public ListStoreSourceTypeID(Interfaces.SourceType type, UInt16 id, params Type[] args) : base(args)
-		{
-			this.type = type;
-			this.id = id;
 		}
 	}
 }

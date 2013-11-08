@@ -3,22 +3,24 @@ using System;
 
 namespace ToxSharpBasic
 {
+	public enum InputKey { None, Up, Down, Tab, Return };
+
 	public class InputHandling
 	{
-		protected Interfaces.IReactions reactions;
-		protected ToxSharp toxsharp;
-		protected DataStorage datastorage;
+		protected ToxInterface toxsharp;
+		protected Interfaces.IUIReactions uireactions;
+		protected Interfaces.IDataReactions datareactions;
 
-		public InputHandling(Interfaces.IReactions reactions, ToxSharp toxsharp, DataStorage datastorage)
+		public InputHandling(ToxInterface toxsharp, Interfaces.IUIReactions uireactions, Interfaces.IDataReactions datareactions)
 		{
-			this.reactions = reactions;
 			this.toxsharp = toxsharp;
-			this.datastorage = datastorage;
+			this.uireactions = uireactions;
+			this.datareactions = datareactions;
 		}
 
 		protected void TextAdd(Interfaces.SourceType type, UInt16 id, string source, string text)
 		{
-			reactions.TextAdd(type, id, source, text);
+			uireactions.TextAdd(type, id, source, text);
 		}
 
 		protected int CommandFriendHandle(string text)
@@ -45,10 +47,10 @@ namespace ToxSharpBasic
 				else
 					ID = text.Substring(space1 + 1);
 
-				if (ID.Length != 2 * ToxSharp.ID_LEN_BINARY)
+				if (ID.Length != 2 * ToxInterface.ID_LEN_BINARY)
 				{
 					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "/fa(dd) <ID>: ID must be exactly " +
-					        2 * ToxSharp.ID_LEN_BINARY + " characters long. (Your input's ID was " + ID.Length + "characters long.)");
+					        2 * ToxInterface.ID_LEN_BINARY + " characters long. (Your input's ID was " + ID.Length + "characters long.)");
 					return -1;
 				}
 
@@ -75,7 +77,7 @@ namespace ToxSharpBasic
 			{
 				string keypartial = text.Substring(space1 + 1);
 				FriendTreeNode friend2delete = null;
-				int candidates2deletenum = datastorage.FindFriendsWithKeyStartingWithID(keypartial, out friend2delete);
+				int candidates2deletenum = datareactions.FindFriendsWithKeyStartingWithID(keypartial, out friend2delete);
 				if (candidates2deletenum == 1)
 				{
 					int code = toxsharp.ToxFriendDel(friend2delete.key);
@@ -85,8 +87,8 @@ namespace ToxSharpBasic
 						return -1;
 					}
 
-					datastorage.StoreDelete(friend2delete);
-					reactions.TreeUpdate();
+					datareactions.Delete(friend2delete);
+					uireactions.TreeDel(friend2delete);
 					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "No longer a friend of yours: " + friend2delete.name + "\n" + friend2delete.key.str);
 
 					return 1;
@@ -111,13 +113,18 @@ namespace ToxSharpBasic
 	
 			string nameorkeypartial = text.Substring(space1 + 1, space2 - space1 - 1);
 			FriendTreeNode friend = null;
-			int foundnum = datastorage.FindFriendsWithNameOrKeyStartingWithID(nameorkeypartial, out friend);
-			if (foundnum == 0)
-				TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "The intended audience wasn't found among your friends.");
-			else if (foundnum > 1)
-				TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "The name/ID fits to more than one friend.");
-			else if (foundnum < 0)
-				TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Internal error. Sorry!");
+			int foundnum = datareactions.FindFriendsWithNameOrKeyStartingWithID(nameorkeypartial, out friend);
+			if (foundnum != 1)
+			{
+				if (foundnum == 0)
+					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "The intended audience wasn't found among your friends.");
+				else if (foundnum > 1)
+					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "The name/ID fits to more than one friend.");
+				else if (foundnum < 0)
+					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Internal error. Sorry!");
+
+				return -1;
+			}
 
 			if ((len > 2) && (text.Substring(0, 3) == "/fd"))
 			{
@@ -156,7 +163,7 @@ namespace ToxSharpBasic
 			if ((len > 1) && (text.Substring(0, 2) == "/i"))
 			{
 				string id = toxsharp.ToxSelfID();
-				reactions.ClipboardSend(id);
+				uireactions.ClipboardSend(id);
 				TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Your id has been copied into the clipboard:\n" + id);
 				return 1;
 			}
@@ -180,7 +187,7 @@ namespace ToxSharpBasic
 				if (toxsharp.ToxNameSet(namestr) == 1)
 				{
 					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Your name is now " + namestr + ".");
-					reactions.TitleUpdate();
+					uireactions.TitleUpdate();
 					return 1;
 				}
 
@@ -228,7 +235,7 @@ namespace ToxSharpBasic
 			if ((len > 1) && (text.Substring(0, 2) =="/q"))
 			{
 				TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Preparing to shut down...");
-				reactions.Quit();
+				uireactions.Quit();
 				return 1;   // not reached?
 			}
 
@@ -265,7 +272,7 @@ namespace ToxSharpBasic
 				// send to target
 				Interfaces.SourceType type;
 				UInt16 id;
-				if (!reactions.CurrentTypeID(out type, out id))
+				if (!uireactions.CurrentTypeID(out type, out id))
 					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "No target for a message on this page. Try '/h' for help.");
 				else
 				{
@@ -314,33 +321,23 @@ namespace ToxSharpBasic
 			return (handled == 1);
 		}
 
-		public bool Do(string text, Gdk.Key key)
+		public bool Do(string text, InputKey key)
 		{
-			if (key == Gdk.Key.Up)
-			{
-				// Combobox, keeping the current input unless a different is selected
-				TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "TODO: Command history.");
-				return false;
+			switch(key) {
+				case InputKey.Up:
+				case InputKey.Down:
+					// Combobox, keeping the current input unless a different is selected
+					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "TODO: Command history.");
+					return false;
+				case InputKey.Tab:
+					// Combobox, popping friends, strangers or groups depending on input
+					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "TODO: Support input on entering an ID.");
+					return false;
+				case InputKey.Return:
+					return InputHandle(text);
+				default:
+					return false;
 			}
-
-			if (key == Gdk.Key.Down)
-			{
-				// Combobox, keeping the current input unless a different is selected
-				TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "TODO: Command history.");
-				return false;
-			}
-
-			if (key == Gdk.Key.Tab)
-			{
-				// Combobox, popping friends, strangers or groups depending on input
-				TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "TODO: Support input on entering an ID.");
-				return false;
-			}
-
-			if (key == Gdk.Key.Return)
-				return InputHandle(text);
-
-			return false;
 		}
 	}
 }

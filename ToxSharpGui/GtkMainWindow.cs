@@ -5,17 +5,18 @@ using Gtk;
 
 using ToxSharpBasic;
 
-namespace ToxSharpGui
+namespace ToxSharpGTK
 {
 	public class HolderTreeNode : Gtk.TreeNode
 	{
 		public TypeIDTreeNode typeid;
 
-		protected HolderTreeNode(TypeIDTreeNode typeid)
+		public HolderTreeNode(TypeIDTreeNode typeid)
 		{
 			this.typeid = typeid;
 		}
 
+		[Obsolete]
 		public static HolderTreeNode Create(TypeIDTreeNode typeid)
 		{
 			return new HolderTreeNode(typeid);
@@ -24,13 +25,11 @@ namespace ToxSharpGui
 		public static HolderTreeNode HeaderNew(TypeIDTreeNode.EntryType type)
 		{
 			TypeIDTreeNode typeid = new HeaderTreeNode(type);
-			return HolderTreeNode.Create(typeid);
+			return new HolderTreeNode(typeid);
 		}
 	}
 
-	public partial class MainWindow : Gtk.Window,
-										IToxSharpBasic, IToxSharpFriend, IToxSharpGroup,
-										Interfaces.IReactions,
+	public partial class GtkMainWindow : Gtk.Window, IMainWindow,
 										Interfaces.IUIReactions
 	{
 		protected class Size
@@ -41,18 +40,31 @@ namespace ToxSharpGui
 
 		protected Size size;
 
+		protected ToxInterface toxsharp;
 		protected InputHandling inputhandling;
 		protected Popups popups;
 
-		public MainWindow (ToxSharp toxsharp): base (Gtk.WindowType.Toplevel)
+		protected Interfaces.IDataReactions datareactions;
+
+		static public void Prepare()
+		{
+			Application.Init();
+		}
+
+		public GtkMainWindow() : base (Gtk.WindowType.Toplevel)
+		{
+		}
+
+		public void Init(ToxInterface toxsharp, Interfaces.IDataReactions datareactions, InputHandling inputhandling, Popups popups)
 		{
 			this.toxsharp = toxsharp;
-			inputhandling = new InputHandling(this, toxsharp, datastorage);
-			popups = new Popups(this, toxsharp, datastorage);
+			this.datareactions = datareactions;
+			this.inputhandling = inputhandling;
+			this.popups = popups;
 
 			Build();
 
-			ToxConnected(false);
+			ConnectState(false, null);
 			TreesSetup();
 
 			// C1ECE4620571325F8211649B462EC1B3398B87FF13B363ACD682F5A27BC4FD46937EAAF221F2
@@ -65,6 +77,12 @@ namespace ToxSharpGui
 			DeleteEvent += OnDeleteEvent;
 
 			Focus = entry1;
+		}
+
+		public void Do()
+		{
+			Show();
+			Application.Run();
 		}
 
 		[GLib.ConnectBefore]
@@ -121,10 +139,16 @@ namespace ToxSharpGui
 	 *
 	 */
 
-		public bool AskIDMessage(out string ID, out string message)
+		public bool AskIDMessage(string explainID, string explainMessage, out string ID, out string message)
 		{
 			ID = null;
 			message = null;
+
+			InputOneLine dlg = new InputOneLine();
+			if (dlg.Do(explainID, out ID))
+				if (dlg.Do(explainMessage, out message))
+					return true;
+
 			return false;
 		}
 
@@ -174,7 +198,16 @@ namespace ToxSharpGui
 
 		protected void OnEntryKeyReleased(object o, Gtk.KeyReleaseEventArgs args)
 		{
-			if (inputhandling.Do(entry1.Text, args.Event.Key))
+			InputKey key = InputKey.None;
+			switch(args.Event.Key) {
+				case Gdk.Key.Up: key = InputKey.Up; break;
+				case Gdk.Key.Down: key = InputKey.Down; break;
+				case Gdk.Key.Tab: key = InputKey.Tab; break;
+				case Gdk.Key.Return: key = InputKey.Return; break;
+				default: return;
+			}
+
+			if (inputhandling.Do(entry1.Text, key))
 				entry1.Text = "";
 		}
 

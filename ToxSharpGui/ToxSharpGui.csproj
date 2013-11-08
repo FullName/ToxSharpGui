@@ -57,6 +57,7 @@
       <Package>gtk-sharp-2.0</Package>
     </Reference>
     <Reference Include="Mono.Posix" />
+    <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="gtk-gui\gui.stetic">
@@ -65,19 +66,20 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="gtk-gui\generated.cs" />
-    <Compile Include="MainWindow.cs" />
     <Compile Include="Main.cs" />
     <Compile Include="AssemblyInfo.cs" />
-    <Compile Include="ToxSharp.cs" />
-    <Compile Include="MainWindow_tox.cs" />
-    <Compile Include="MainWindow_Nodes.cs" />
     <Compile Include="InputOneLine.cs" />
-    <Compile Include="gtk-gui\ToxSharpGui.InputOneLine.cs" />
     <Compile Include="DataStorage.cs" />
     <Compile Include="InputHandling.cs" />
     <Compile Include="Popups.cs" />
-    <Compile Include="gtk-gui\ToxSharpGui.MainWindow.cs" />
     <Compile Include="Interfaces.cs" />
+    <Compile Include="ToxGlue.cs" />
+    <Compile Include="GtkMainWindow.cs" />
+    <Compile Include="GtkMainWindow_Nodes.cs" />
+    <Compile Include="WinFormsMainWindow.cs" />
+    <Compile Include="ToxInterface.cs" />
+    <Compile Include="gtk-gui\ToxSharpGTK.GtkMainWindow.cs" />
+    <Compile Include="gtk-gui\ToxSharpGTK.InputOneLine.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
