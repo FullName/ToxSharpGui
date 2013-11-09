@@ -1,5 +1,6 @@
 
 using System;
+using System.Drawing;
 using System.Collections.Generic;
 using Gtk;
 
@@ -129,7 +130,7 @@ namespace ToxSharpGTK
 	 *
 	 */
 
-		public void PopupMenuDo(Interfaces.PopupEntry[] entries)
+		public void PopupMenuDo(object parent, Point position, Interfaces.PopupEntry[] entries)
 		{
 			if (entries.Length == 0)
 				return;
@@ -179,7 +180,17 @@ namespace ToxSharpGTK
 			for(int i = 0; i < entries.Length; i++)
 				menu.Append(items[i]);
 
+			menu.Parent = parent as Gtk.Widget;
 			menu.Popup();
+		}
+
+		public string PopupMenuAction(object o, System.EventArgs args)
+		{
+			Gtk.MenuItem item = o as Gtk.MenuItem;
+			if (item != null)
+				return item.Name;
+			else
+				return null;
 		}
 
 	/*
@@ -188,15 +199,14 @@ namespace ToxSharpGTK
 	 *
 	 */
 
-		public bool AskIDMessage(string explainID, string explainMessage, out string ID, out string message)
+		public bool AskIDMessage(string message, string name1, string name2, out string input1, out string input2)
 		{
-			ID = null;
-			message = null;
+			input1 = null;
+			input2 = null;
 
-			InputOneLine dlg = new InputOneLine();
-			if (dlg.Do(explainID, out ID))
-				if (dlg.Do(explainMessage, out message))
-					return true;
+			GtkInputTwoLines dlg = new GtkInputTwoLines();
+			if (dlg.Do(message, name1, name2, out input1, out input2))
+				return true;
 
 			return false;
 		}

@@ -1,5 +1,6 @@
 
 using System;
+using System.Drawing;
 using System.Collections.Generic;
 
 namespace ToxSharpBasic
@@ -39,10 +40,11 @@ namespace ToxSharpBasic
 			void TextAdd(SourceType type, System.UInt16 id, string source, string text);
 
 			// create and execute a popup menu (added Do due to name clash for GTK)
-			void PopupMenuDo(PopupEntry[] entries);
+			void PopupMenuDo(object parent, Point position, PopupEntry[] entries);
+			string PopupMenuAction(object o, System.EventArgs args);
 
-			// ask user for two strings: the ID and a message for a friend-invite
-			bool AskIDMessage(string explainID, string explainMessage, out string ID, out string message);
+			// used to ask user for two strings: the ID and a message for a friend-invite
+			bool AskIDMessage(string message, string name1, string name2, out string input1, out string input2);
 
 			// close down application
 			void Quit();

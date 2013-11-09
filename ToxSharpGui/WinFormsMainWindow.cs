@@ -1,5 +1,6 @@
 
 using System;
+using System.Drawing;
 using WinForms = System.Windows.Forms;
 
 using ToxSharpBasic;
@@ -63,16 +64,16 @@ namespace ToxSharpWinForms
 					{
 						child.Text = child.typeid.Text();
 						child.ToolTipText = child.typeid.TooltipText();
+					    break;
 					}
 			}
 			else
 				foreach(HolderTreeNode parent in people.Nodes)
 					foreach(HolderTreeNode child in parent.Nodes)
-						if (child.typeid == typeid)
-						{
-							child.Text = child.typeid.Text();
-							child.ToolTipText = child.typeid.TooltipText();
-						}
+					{
+						child.Text = child.typeid.Text();
+						child.ToolTipText = child.typeid.TooltipText();
+					}
 
 			people.Refresh();
 		}
@@ -93,27 +94,100 @@ namespace ToxSharpWinForms
 
 		public void TextAdd(Interfaces.SourceType type, UInt16 id, string source, string text)
 		{
-			// TODO: add to all which match and to page0
-
-			// add a new row to listview
 			// TODO: multiple rows if source or text contain newlines
-			WinForms.TabPage page = pages.SelectedTab;
-			WinForms.ListView output = page.Controls[0] as WinForms.ListView;
-			output.Items.Add(source).SubItems.Add(text);
+			// TODO: split across multiple rows, mark as continuation, in resize recalc
 
-			// TODO: scroll to bottom
+			WinForms.TabPage main = pages.TabPages[0];
+			WinForms.ListView output = main.Controls[0] as WinForms.ListView;
+			WinForms.ListViewItem item = output.Items.Add(source);
+			item.SubItems.Add(text);
+			output.EnsureVisible(item.Index);
+
+			if ((type == Interfaces.SourceType.Friend) ||
+			    (type == Interfaces.SourceType.Group))
+				foreach(WinForms.TabPage wfpage in pages.TabPages)
+				{
+					TabbedPage page = wfpage as TabbedPage;
+					if (page.Is(type, id))
+					{
+						output = wfpage.Controls[0] as WinForms.ListView;
+						item = output.Items.Add(source);
+						item.SubItems.Add(text);
+						output.EnsureVisible(item.Index);
+					}
+				}
 		}
 
 		// create and execute a popup menu
-		public void PopupMenuDo(Interfaces.PopupEntry[] entries)
+		public void PopupMenuDo(object parent, Point position, Interfaces.PopupEntry[] entries)
 		{
+			WinForms.Control parentcontrol = parent as WinForms.Control;
+			if ((parentcontrol == null) || (entries.Length == 0))
+				return;
+
+			for(int i = 0; i < entries.Length; i++)
+				if (entries[i].parent >= 0)
+				{
+				    // first parents, then children, no self-ref
+					if (entries[i].parent >= i)
+						return;
+
+					// out of bounds
+				    if (entries[i].parent >= entries.Length)
+						return;
+				}
+
+			// generate lowest children
+			// generate their parents
+			// until all is tied in
+			WinForms.ContextMenu[] menus = new WinForms.ContextMenu[entries.Length];
+			WinForms.MenuItem[] items = new WinForms.MenuItem[entries.Length];
+
+			// Gtk.Menu[] menus = new Gtk.Menu[entries.Length];
+			// Gtk.MenuItem[] items = new Gtk.MenuItem[entries.Length];
+
+			for(int i = 0; i < entries.Length; i++)
+			{
+				Interfaces.PopupEntry entry = entries[i];
+
+				items[i] = new WinForms.MenuItem(entry.title, entry.handle);
+				items[i].Name = entry.action;
+				items[i].Visible = true;
+
+				if (entry.parent >= 0)
+				{
+					if (menus[entry.parent] == null)
+					{
+						menus[entry.parent] = new WinForms.ContextMenu();
+						items[entry.parent].Enabled = false;
+						items[entry.parent].MergeMenu(menus[entry.parent]);
+					}
+
+					menus[entries[i].parent].MenuItems.Add(items[i]);
+				}
+			}
+
+			WinForms.ContextMenu menu = new WinForms.ContextMenu();
+
+			for(int i = 0; i < entries.Length; i++)
+				menu.MenuItems.Add(items[i]);
+
+			menu.Show(parentcontrol, position);
+		}
+
+		public string PopupMenuAction(object o, System.EventArgs args)
+		{
+			return null;
 		}
 
 		// ask user for two strings: the ID and a message for a friend-invite
-		public bool AskIDMessage(string explainID, string explainMessage, out string ID, out string message)
+		public bool AskIDMessage(string message, string name1, string name2, out string input1, out string input2)
 		{
-			ID = "";
-			message = "";
+			// TODO: dialog
+			TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "Not yet implemented. Use /fadd.");
+
+			input1 = null;
+			input2 = null;
 			return false;
 		}
 
@@ -153,29 +227,17 @@ namespace ToxSharpWinForms
 			Controls.Add(connectstate);
 
 			people = new WinForms.TreeView();
-			people.MouseClick += TreeViewVoidMouseSingleClickHandler;
-			people.MouseDoubleClick += TreeViewVoidMouseDoubleClickHandler;
-			people.NodeMouseClick += TreeViewNodeMouseSingleClick;
-			people.NodeMouseDoubleClick += TreeViewNodeMouseDoubleClick;
+			people.ShowNodeToolTips = true;
+			people.MouseClick += TreeViewMouseSingleClickHandler;
+			people.MouseDoubleClick += TreeViewMouseDoubleClickHandler;
+			people.KeyUp += TreeViewKeyUp;
+			people.MouseUp += TreeViewMouseUp;
 
 			people.Left = 5;
 			people.Top = connectstate.Bottom + 5;
 			people.Width = LeftWidth;
 			people.Height = HeightMin - connectstate.Height;
 			Controls.Add(people);
-
-			WinForms.ListView output = new WinForms.ListView();
-			output.View = WinForms.View.Details;
-			output.Scrollable = true;
-			output.Columns.Add("Source", 60);
-			output.Columns.Add("Text", RightWidth - 15 - 60);
-			output.HeaderStyle = WinForms.ColumnHeaderStyle.Nonclickable;
-
-			output.Width = RightWidth;
-			output.Height = HeightMin - connectstate.Height;
-
-			WinForms.TabPage page = new WinForms.TabPage("Main");
-			page.Controls.Add(output);
 
 			pages = new WinForms.TabControl();
 			pages.Alignment = WinForms.TabAlignment.Bottom;
@@ -184,7 +246,6 @@ namespace ToxSharpWinForms
 			pages.Top = 5;
 			pages.Width = RightWidth;
 			pages.Height = HeightMin - connectstate.Height;
-			pages.Controls.Add(page);
 
 			Controls.Add(pages);
 
@@ -198,10 +259,33 @@ namespace ToxSharpWinForms
 			input.Height = connectstate.Height;
 			Controls.Add(input);
 
+			PageAdd(null, "Main");
+
 			Resize += ResizeHandler;
 			Closed += ClosedHandler;
 
 			// TODO: Focus => tb
+		}
+
+		void TreeViewKeyUp (object sender, WinForms.KeyEventArgs e)
+		{
+			if ((e.Modifiers == WinForms.Keys.None) &&
+			    (e.KeyData == WinForms.Keys.Return))
+			{
+				WinForms.TreeView view = sender as WinForms.TreeView;
+				if (view != null)
+				{
+					WinForms.TreeNode node = view.SelectedNode;
+					if (node != null)
+					{
+						HolderTreeNode holder = node as HolderTreeNode;
+						if (holder != null)
+							PageAdd(holder.typeid, holder.typeid.Text());
+					}
+				}
+			}
+			else
+				TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "KEYUP: " + e.KeyValue);
 		}
 
 		protected ToxInterface toxif;
@@ -241,32 +325,159 @@ namespace ToxSharpWinForms
 			PageUpdate();
 		}
 
-		private void PageUpdate()
+		class TabbedPage : WinForms.TabPage
+		{
+			protected Interfaces.SourceType type;
+			protected UInt16 id;
+
+			protected TabbedPage(WinForms.TabControl pages, WinForms.TextBox input, Interfaces.SourceType type, UInt16 id, string title) : base(title)
+			{
+				this.type = type;
+				this.id = id;
+
+				int RightWidth = pages.Width;
+
+				WinForms.ListView output = new WinForms.ListView();
+				output.View = WinForms.View.Details;
+				output.Scrollable = true;
+				output.Columns.Add("Source", 60);
+				output.Columns.Add("Text", RightWidth - 24 - 60);
+				output.HeaderStyle = WinForms.ColumnHeaderStyle.Nonclickable;
+
+				output.Width = RightWidth;
+				output.Height = HeightMin - input.Height - 28;
+
+				Controls.Add(output);
+			}
+
+			public bool Is(Interfaces.SourceType type, UInt16 id)
+			{
+				return ((this.type == type) && (this.id == id));
+			}
+
+
+			public static void PageAdd(WinForms.TabControl pages, WinForms.TextBox input, TypeIDTreeNode typeid, string title)
+			{
+				Interfaces.SourceType type = Interfaces.SourceType.System;
+				UInt16 id = 0;
+				if (pages.Controls.Count > 0)
+				{
+					if (typeid == null)
+						return;
+
+					if (typeid.entryType == TypeIDTreeNode.EntryType.Friend)
+						type = Interfaces.SourceType.Friend;
+					else if (typeid.entryType == TypeIDTreeNode.EntryType.Group)
+						type = Interfaces.SourceType.Group;
+					else
+						return;
+
+					foreach(WinForms.TabPage wfpage in pages.TabPages)
+					{
+						TabbedPage page = wfpage as TabbedPage;
+						if (page != null)
+							if (page.Is(type, typeid.id))
+							{
+								pages.SelectedTab = page;
+								return;
+							}
+					}
+
+					id = typeid.id;
+				}
+
+				TabbedPage tabbedpage = new TabbedPage(pages, input, type, id, title);
+				pages.Controls.Add(tabbedpage);
+				pages.SelectedTab = tabbedpage;
+			}
+		}
+
+		protected void PageAdd(TypeIDTreeNode typeid, string title)
+		{
+			if (pages.Controls.Count > 0)
+				if ((typeid.entryType != TypeIDTreeNode.EntryType.Friend) &&
+			        (typeid.entryType != TypeIDTreeNode.EntryType.Group))
+					return;
+
+			TabbedPage.PageAdd(pages, input, typeid, title);
+		}
+
+		protected void PageUpdate()
 		{
 			WinForms.TabPage page = pages.SelectedTab;
 			WinForms.ListView output = page.Controls[0] as WinForms.ListView;
 			output.Width = pages.Width;
-			output.Height = pages.Height;
+			output.Height = pages.Height - 28;
 		}
 
-		void TreeViewNodeMouseSingleClick(object sender, WinForms.TreeNodeMouseClickEventArgs e)
+		void TreeViewMouseUp(object sender, WinForms.MouseEventArgs e)
 		{
-			// node click
+			// non-node area handling must be done here
+			TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "MouseUp@" + e.X + ":" + e.Y);
+			TreeViewMouseClick(sender, e.Location, e.Button, Popups.Click.Single);
 		}
 
-		void TreeViewNodeMouseDoubleClick(object sender, WinForms.TreeNodeMouseClickEventArgs e)
+		void TreeViewMouseClick(object sender, Point location, WinForms.MouseButtons wfbutton, Popups.Click click)
 		{
-			// node click
+			string dbgmsg = "TVNMC: ";
+
+			WinForms.TreeView view = sender as WinForms.TreeView;
+			WinForms.TreeNode node = view.GetNodeAt(location);
+			HolderTreeNode holder = node as HolderTreeNode;
+			TypeIDTreeNode typeid = null;
+			if (holder != null)
+			{
+				typeid = holder.typeid;
+				dbgmsg += "[^" + typeid.entryType.ToString() + ":" + typeid.id + "] ";
+			}
+			else if (node != null)
+				return;
+
+			Popups.Button button = Popups.Button.None;
+			switch(wfbutton)
+			{
+				case WinForms.MouseButtons.Left:
+					button = Popups.Button.Left;
+					dbgmsg += "L";
+					break;
+				case WinForms.MouseButtons.Middle:
+					button = Popups.Button.Middle;
+					dbgmsg += "M";
+					break;
+				case WinForms.MouseButtons.Right:
+					button = Popups.Button.Right;
+					dbgmsg += "R";
+					break;
+			}
+
+			dbgmsg += click.ToString();
+			// TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", dbgmsg);
+
+			if (typeid == null)
+				popups.TreePopup(this, Location, typeid, button, click);
+			else
+				popups.TreePopup(sender, Location, typeid, button, click);
 		}
 
-		void TreeViewVoidMouseSingleClickHandler(object sender, WinForms.MouseEventArgs e)
+		void TreeViewMouseSingleClickHandler(object sender, WinForms.MouseEventArgs e)
 		{
-			// empty space click
+			// TreeViewMouseClick(sender, e.Location, e.Button, Popups.Click.Single);
 		}
 
-		void TreeViewVoidMouseDoubleClickHandler(object sender, WinForms.MouseEventArgs e)
+		void TreeViewMouseDoubleClickHandler(object sender, WinForms.MouseEventArgs e)
 		{
-			// empty space click
+			// TreeViewMouseClick(sender, e.Location, e.Button, Popups.Click.Double);
+			WinForms.TreeView view = sender as WinForms.TreeView;
+			if (view == null)
+				return;
+
+			WinForms.TreeNode node = view.GetNodeAt(e.Location);
+			HolderTreeNode holder = node as HolderTreeNode;
+			if (holder == null)
+				return;
+
+			TypeIDTreeNode typeid = holder.typeid;
+			PageAdd(typeid, typeid.Text());
 		}
 
 		void TextBoxKeyPressHandler(object sender, WinForms.KeyPressEventArgs e)

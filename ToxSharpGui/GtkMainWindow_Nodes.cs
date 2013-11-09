@@ -466,6 +466,10 @@ namespace ToxSharpGTK
 		{
 			// path is wrong here
 			// DumpAction(o, "ButtonUp: " + args.Event.Button + " @ " + args.Event.X + ", " + args.Event.Y);
+			System.Drawing.Point pos;
+			pos.X = (int)args.Event.X;
+			pos.Y = (int)args.Event.Y;
+
 			Popups.Button button = Popups.Button.None;
 			switch(args.Event.Button)
 			{
@@ -488,10 +492,9 @@ namespace ToxSharpGTK
 					break;
 			}
 
-			int x = (int)args.Event.X, y = (int)args.Event.Y;
 			TreePath path;
 			TreeViewColumn col;
-			if (treeview1.GetPathAtPos(x, y, out path, out col))
+			if (treeview1.GetPathAtPos(pos.X, pos.Y, out path, out col))
 			{
 				DumpAction(o, "ButtonUp: (inside) " + args.Event.Button + ":" + args.Event.Type + " @ " + args.Event.X + ", " + args.Event.Y);
 
@@ -514,10 +517,10 @@ namespace ToxSharpGTK
 					return;
 				}
 
-				popups.TreePopup(typeid, button, click);
+				popups.TreePopup(o, pos, typeid, button, click);
 			}
 			else
-				popups.TreePopup(null, button, click);
+				popups.TreePopup(o, pos, null, button, click);
 		}
 
 		protected void OnTreeview1KeyReleaseEvent (object o, Gtk.KeyReleaseEventArgs args)

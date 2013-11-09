@@ -58,6 +58,7 @@
     </Reference>
     <Reference Include="Mono.Posix" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="gtk-gui\gui.stetic">
@@ -68,7 +69,6 @@
     <Compile Include="gtk-gui\generated.cs" />
     <Compile Include="Main.cs" />
     <Compile Include="AssemblyInfo.cs" />
-    <Compile Include="InputOneLine.cs" />
     <Compile Include="DataStorage.cs" />
     <Compile Include="InputHandling.cs" />
     <Compile Include="Popups.cs" />
@@ -79,7 +79,8 @@
     <Compile Include="WinFormsMainWindow.cs" />
     <Compile Include="ToxInterface.cs" />
     <Compile Include="gtk-gui\ToxSharpGTK.GtkMainWindow.cs" />
-    <Compile Include="gtk-gui\ToxSharpGTK.InputOneLine.cs" />
+    <Compile Include="GtkInputTwoLines.cs" />
+    <Compile Include="gtk-gui\ToxSharpGTK.GtkInputTwoLines.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>

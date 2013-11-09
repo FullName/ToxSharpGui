@@ -13,7 +13,9 @@ namespace ToxSharpBasic
 	{
 		public static void Main(string[] args)
 		{
-			string uiname = "winforms";
+			string uiname = "gtk";
+			// string uiname = "winforms";
+
 			object uiobject = null;
 			foreach(string name in args)
 				if (name.Substring(0, 6) == "--gui=")
