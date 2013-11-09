@@ -28,7 +28,8 @@ namespace ToxSharpWinForms
 			if (parent != null)
 			{
 				parent.Nodes.Add(new HolderTreeNode(typeid));
-				people.ExpandAll();
+				parent.Expand();
+				TreeUpdate(typeid);
 			}
 		}
 
@@ -49,6 +50,7 @@ namespace ToxSharpWinForms
 				}
 
 			people.Refresh();
+			TreeUpdate(null);
 		}
 
 		public void TreeUpdate(TypeIDTreeNode typeid)
@@ -249,18 +251,22 @@ namespace ToxSharpWinForms
 
 		void TreeViewNodeMouseSingleClick(object sender, WinForms.TreeNodeMouseClickEventArgs e)
 		{
+			// node click
 		}
 
 		void TreeViewNodeMouseDoubleClick(object sender, WinForms.TreeNodeMouseClickEventArgs e)
 		{
+			// node click
 		}
 
 		void TreeViewVoidMouseSingleClickHandler(object sender, WinForms.MouseEventArgs e)
 		{
+			// empty space click
 		}
 
 		void TreeViewVoidMouseDoubleClickHandler(object sender, WinForms.MouseEventArgs e)
 		{
+			// empty space click
 		}
 
 		void TextBoxKeyPressHandler(object sender, WinForms.KeyPressEventArgs e)
@@ -302,10 +308,13 @@ namespace ToxSharpWinForms
 			if (headers[id] != null)
 				return headers[id];
 
-			// find the first next header to insert over
 			HeaderTreeNode header = new HeaderTreeNode(typeid.entryType);
 			HolderTreeNode holder = new HolderTreeNode(header);
+			holder.Text = header.Text();
+			holder.ToolTipText = header.TooltipText();
 			headers[id] = holder;
+
+			// find the first next header to insert over
 			for(int next = id + 1; next < headers.Length; next++)
 				if (headers[next] != null)
 				{

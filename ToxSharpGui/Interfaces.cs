@@ -10,11 +10,11 @@ namespace ToxSharpBasic
 
 		public class PopupEntry
 		{
-			public uint parent;
-			public string title;
-			public string action;
+			public int parent;      // -1 for none, index to parent otherwise
+			public string title;    // visible title
+			public string action;   // given to handler
 
-			public delegate void Handle(string action);
+			public EventHandler handle;
 		}
 
 		// independence of GUI toolkit: required reactions

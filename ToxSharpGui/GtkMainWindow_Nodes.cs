@@ -462,10 +462,31 @@ namespace ToxSharpGTK
 			TextAdd(0, 256, "DEBUG", text);
 		}
 
-		protected void OnTreeview1ButtonReleaseEvent (object o, Gtk.ButtonReleaseEventArgs args)
+		protected void OnTreeview1ButtonReleaseEvent(object o, Gtk.ButtonReleaseEventArgs args)
 		{
 			// path is wrong here
 			// DumpAction(o, "ButtonUp: " + args.Event.Button + " @ " + args.Event.X + ", " + args.Event.Y);
+			Popups.Button button = Popups.Button.None;
+			switch(args.Event.Button)
+			{
+				case 1: button = Popups.Button.Left;
+						break;
+				case 2: button = Popups.Button.Middle;
+						break;
+				case 3: button = Popups.Button.Right;
+						break;
+			}
+
+			Popups.Click click = Popups.Click.None;
+			switch (args.Event.Type)
+			{
+				case Gdk.EventType.ButtonRelease:
+					click = Popups.Click.Single;
+					break;
+				case Gdk.EventType.TwoButtonPress:
+					click = Popups.Click.Double;
+					break;
+			}
 
 			int x = (int)args.Event.X, y = (int)args.Event.Y;
 			TreePath path;
@@ -490,12 +511,13 @@ namespace ToxSharpGTK
 				    (args.Event.Button == 2))
 				{
 					NotebookAddPage(typeid);
+					return;
 				}
 
-				popups.TreePopup(typeid, args.Event);
+				popups.TreePopup(typeid, button, click);
 			}
 			else
-				popups.TreePopup(null, args.Event);
+				popups.TreePopup(null, button, click);
 		}
 
 		protected void OnTreeview1KeyReleaseEvent (object o, Gtk.KeyReleaseEventArgs args)

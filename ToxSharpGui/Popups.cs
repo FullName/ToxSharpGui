@@ -6,6 +6,9 @@ namespace ToxSharpBasic
 {
 	public class Popups
 	{
+		public enum Button { None, Left, Middle, Right };
+		public enum Click { None, Single, Double };
+
 		protected ToxInterface toxsharp;
 		protected Interfaces.IUIReactions uireactions;
 		protected Interfaces.IDataReactions datareactions;
@@ -22,7 +25,7 @@ namespace ToxSharpBasic
 			uireactions.TextAdd(type, id, source, text);
 		}
 
-		public void TreeViewPopupNew(object o, System.EventArgs args)
+		protected void TreeViewPopupNew(object o, System.EventArgs args)
 		{
 			Gtk.MenuItem item = o as Gtk.MenuItem;
 			if (item.Name == "new:friend")
@@ -165,7 +168,7 @@ namespace ToxSharpBasic
 			}
 		}
 
-		public void TreeViewPopupInvite(object o, System.EventArgs args)
+		protected void TreeViewPopupInvite(object o, System.EventArgs args)
 		{
 			Gtk.MenuItem item = o as Gtk.MenuItem;
 			TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "invite action: " + item.Name);
@@ -180,7 +183,7 @@ namespace ToxSharpBasic
 				friendnumber = Convert.ToUInt16(friendnumstr);
 
 				string keystr = item.Name.Substring(colon2 + 1);
-				TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "stranger action: ACCEPT => [" + keystr + "]");
+				TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "invite action: ACCEPT => [" + keystr + "]");
 				ToxKey groupkey = new ToxKey(keystr);
 
 				int groupnumber;
@@ -200,18 +203,26 @@ namespace ToxSharpBasic
 			}
 			else if (item.Name.Substring(0, 8) == "decline:")
 			{
-				string id = item.Name.Substring(8);
-				TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "stranger action: DECLINE => [" + id + "]");
+				int colon2 = item.Name.IndexOf(':', 7);
+				if (colon2 < 8)
+					return;
+/*
+				int friendnumber;
+				string friendnumstr = item.Name.Substring(7, colon2 - 7);
+				friendnumber = Convert.ToUInt16(friendnumstr);
+*/
+				string keystr = item.Name.Substring(colon2 + 1);
+				TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "invite action: DECLINE => [" + keystr + "]: TODO.");
 			}
 		}
 
-		public void TreePopup(TypeIDTreeNode typeid, Gdk.EventButton eventbutton)
+		public void TreePopup(TypeIDTreeNode typeid, Button button, Click click)
 		{
 			if (typeid != null)
 			{
 				// dbl-click/middle-click handled in caller
 
-				if (eventbutton.Button == 3)
+				if (button == Button.Right)
 				{
 					if (typeid.entryType == TypeIDTreeNode.EntryType.Header)
 						return;
@@ -231,33 +242,52 @@ namespace ToxSharpBasic
 						if (friend == null)
 							return;
 
-						Gtk.Menu menu = new Gtk.Menu();
-
-						Gtk.MenuItem itemfriend = new Gtk.MenuItem("Invite to group");
-						itemfriend.Name = "invite:" + friend.key.str;
-						itemfriend.Sensitive = false;
+						uint groupcnt = 0;
+						Dictionary<UInt16, TypeIDTreeNode> groups;
+						if (datareactions.GroupEnumerator(out groups) && (groups.Count > 0))
+							foreach(KeyValuePair<UInt16, TypeIDTreeNode> pair in groups)
+							{
+								GroupTreeNode group = pair.Value as GroupTreeNode;
+								if (group != null)
+									groupcnt++;
+							}
 
 						bool submenu = false;
 
-						Dictionary<UInt16, TypeIDTreeNode> groups;
-						if (datareactions.GroupEnumerator(out groups) && (groups.Count > 0))
+						Interfaces.PopupEntry[] entries;
+						Interfaces.PopupEntry entry;
+
+						if (groupcnt > 0)
 						{
-							bool gotone = false;
-
-							Gtk.Menu menugroups;
-							if (!submenu)
-								menugroups = null;
+							if (submenu)
+								entries = new Interfaces.PopupEntry[groupcnt + 2];
 							else
-								menugroups = new Gtk.Menu();
+								entries = new Interfaces.PopupEntry[groupcnt + 1];
+						}
+						else
+							entries = new Interfaces.PopupEntry[1];
 
-							Gtk.MenuItem itemgroup;
+						if (entries == null)
+							return;
+
+						if (submenu && (groupcnt > 0))
+						{
+							entry = new Interfaces.PopupEntry();
+							entry.parent = -1;
+							entry.title = "Invite to group";
+							entry.action = "invite:" + friend.key.str;
+							// no handler
+							entries[0] = entry;
+						}
+
+						if (groupcnt > 0)
+						{
+							uint groupcurr = 0;
 							foreach(KeyValuePair<UInt16, TypeIDTreeNode> pair in groups)
 							{
 								GroupTreeNode group = pair.Value as GroupTreeNode;
 								if (group != null)
 								{
-									gotone = true;
-
 									string text = "Group #" + group.id;
 									if (group.name != null)
 										text += " " + group.name;
@@ -265,42 +295,40 @@ namespace ToxSharpBasic
 										text += " (" + group.key.str.Substring(0, 8) + "...)";
 									if (!submenu)
 										text = "Invite to " + text;
-									itemgroup = new Gtk.MenuItem(text);
+
 									string name = "invite:" + friend.key.str + ":" + group.id;
 									if (group.key != null)
 										name += ":" + group.key.str;
-									itemgroup.Name = name;
-									itemgroup.Activated += TreeViewPopupFriend;
-									itemgroup.Show();
 
+									entry = new Interfaces.PopupEntry();
+									entry.parent = -1;
+									entry.title = text;
+									entry.action = name;
+									entry.handle = TreeViewPopupFriend;
 									if (submenu)
-										menugroups.Append(itemgroup);
+									{
+										entry.parent = 0;
+										entries[groupcurr + 1] = entry;
+									}
 									else
-										menu.Append(itemgroup);
+										entries[groupcurr] = entry;
 								}
 							}
-
-							if (gotone && submenu)
-							{
-								// TODO: submenu fails to fire on selection
-								itemfriend.Sensitive = true;
-								itemfriend.Submenu = menugroups;
-							}
 						}
 
-						if (submenu)
-						{
-							itemfriend.Show();
-							menu.Append(itemfriend);
-						}
+						entry = new Interfaces.PopupEntry();
+						entry.parent = -1;
+						entry.title = "Remove from list";
+						entry.action = "remove:" + friend.key.str;
+						entry.handle = TreeViewPopupFriend;
+						if (groupcnt == 0)
+							entries[0] = entry;
+						else if (submenu)
+							entries[groupcnt + 1] = entry;
+						else
+							entries[groupcnt] = entry;
 
-						Gtk.MenuItem itemremove = new Gtk.MenuItem("Remove from list");
-						itemremove.Name = "remove:" + friend.key.str;
-						itemremove.Activated += TreeViewPopupFriend;
-						itemremove.Show();
-						menu.Append(itemremove);
-
-						menu.Popup();
+						uireactions.PopupMenuDo(entries);
 					}
 
 					if (typeid.entryType == TypeIDTreeNode.EntryType.Group)
@@ -309,16 +337,18 @@ namespace ToxSharpBasic
 						if (group == null)
 							return;
 
-						Gtk.Menu menu = new Gtk.Menu();
-						Gtk.MenuItem itemdelete = new Gtk.MenuItem("Delete group (membership)");
-						itemdelete.Name = "delete:" + group.id + ":";
-						if (group.key != null)
-							itemdelete.Name += group.key.str;
-						itemdelete.Activated += TreeViewPopupGroup;
-						itemdelete.Show();
-						menu.Append(itemdelete);
+						Interfaces.PopupEntry[] entries = new Interfaces.PopupEntry[1];
 
-						menu.Popup();
+						Interfaces.PopupEntry entry = new Interfaces.PopupEntry();
+						entry.parent = -1;
+						entry.title = "Delete group (membership)";
+						entry.action = "delete:" + group.id + ":";
+						if (group.key != null)
+							entry.action += group.key.str;
+						entry.handle += TreeViewPopupGroup;
+						entries[0] = entry;
+
+						uireactions.PopupMenuDo(entries);
 					}
 
 					if (typeid.entryType == TypeIDTreeNode.EntryType.Stranger)
@@ -327,20 +357,23 @@ namespace ToxSharpBasic
 						if (stranger == null)
 							return;
 
-						Gtk.Menu menu = new Gtk.Menu();
-						Gtk.MenuItem itemfriend = new Gtk.MenuItem("Accept as friend");
-						itemfriend.Name = "accept:" + stranger.key.str;
-						itemfriend.Activated += TreeViewPopupStranger;
-						itemfriend.Show();
-						menu.Append(itemfriend);
+						Interfaces.PopupEntry[] entries = new Interfaces.PopupEntry[2];
 
-						Gtk.MenuItem itemgroup = new Gtk.MenuItem("Decline as friend");
-						itemgroup.Name = "decline:" + stranger.key.str;
-						itemgroup.Activated += TreeViewPopupStranger;
-						itemgroup.Show();
-						menu.Append(itemgroup);
+						Interfaces.PopupEntry entry = new Interfaces.PopupEntry();
+						entry.parent = -1;
+						entry.title = "Accept as friend";
+						entry.action = "accept:" + stranger.key.str;
+						entry.handle += TreeViewPopupStranger;
+						entries[0] = entry;
 
-						menu.Popup();
+						entry = new Interfaces.PopupEntry();
+						entry.parent = -1;
+						entry.title = "Decline as friend";
+						entry.action = "decline:" + stranger.key.str;
+						entry.handle += TreeViewPopupStranger;
+						entries[1] = entry;
+
+						uireactions.PopupMenuDo(entries);
 					}
 
 					if (typeid.entryType == TypeIDTreeNode.EntryType.Invitation)
@@ -349,29 +382,50 @@ namespace ToxSharpBasic
 						if (invite == null)
 							return;
 
-						Gtk.Menu menu = new Gtk.Menu();
-						Gtk.MenuItem inviteaccept = new Gtk.MenuItem("Accept invite");
-						inviteaccept.Name = "accept:" + invite.inviterid + ":" + invite.key.str;
-						inviteaccept.Activated += TreeViewPopupInvite;
-						inviteaccept.Show();
-						menu.Append(inviteaccept);
+						Interfaces.PopupEntry[] entries = new Interfaces.PopupEntry[2];
 
-						Gtk.MenuItem invitedecline = new Gtk.MenuItem("Decline invite");
-						invitedecline.Name = "decline:" + invite.key.str;
-						invitedecline.Activated += TreeViewPopupInvite;
-						invitedecline.Show();
-						menu.Append(invitedecline);
+						Interfaces.PopupEntry entry = new Interfaces.PopupEntry();
+						entry.parent = -1;
+						entry.title = "Accept invite";
+						entry.action = "accept:" + invite.inviterid + ":" + invite.key.str;
+						entry.handle += TreeViewPopupInvite;
+						entries[0] = entry;
 
-						menu.Popup();
+						entry = new Interfaces.PopupEntry();
+						entry.parent = -1;
+						entry.title = "Decline invite";
+						entry.action = "decline:" + invite.inviterid + ":" + invite.key.str;
+						entry.handle += TreeViewPopupInvite;
+						entries[1] = entry;
+
+						uireactions.PopupMenuDo(entries);
 					}
 				}
 			}
 			else
 			{
 				// only popup here
-				if (eventbutton.Button != 3)
+				if (button != Button.Right)
 					return;
 
+				Interfaces.PopupEntry[] entries = new Interfaces.PopupEntry[2];
+
+				Interfaces.PopupEntry entry = new Interfaces.PopupEntry();
+				entry.parent = -1;
+				entry.title = "new friend";
+				entry.action = "new:friend";
+				entry.handle += TreeViewPopupNew;
+				entries[0] = entry;
+
+				entry = new Interfaces.PopupEntry();
+				entry.parent = -1;
+				entry.title = "new group";
+				entry.action = "new:group";
+				entry.handle += TreeViewPopupNew;
+				entries[1] = entry;
+
+				uireactions.PopupMenuDo(entries);
+/*
 				Gtk.Menu menu = new Gtk.Menu();
 				Gtk.MenuItem itemfriend = new Gtk.MenuItem("new friend");
 				itemfriend.Activated += TreeViewPopupNew;
@@ -386,6 +440,7 @@ namespace ToxSharpBasic
 				menu.Append(itemgroup);
 
 				menu.Popup();
+*/
 			}
 		}
 	}

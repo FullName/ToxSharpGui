@@ -131,6 +131,55 @@ namespace ToxSharpGTK
 
 		public void PopupMenuDo(Interfaces.PopupEntry[] entries)
 		{
+			if (entries.Length == 0)
+				return;
+
+			for(int i = 0; i < entries.Length; i++)
+				if (entries[i].parent >= 0)
+				{
+				    // first parents, then children, no self-ref
+					if (entries[i].parent >= i)
+						return;
+
+					// out of bounds
+				    if (entries[i].parent >= entries.Length)
+						return;
+				}
+
+			// generate lowest children
+			// generate their parents
+			// until all is tied in
+			Gtk.Menu[] menus = new Gtk.Menu[entries.Length];
+			Gtk.MenuItem[] items = new Gtk.MenuItem[entries.Length];
+
+			for(int i = 0; i < entries.Length; i++)
+			{
+				Interfaces.PopupEntry entry = entries[i];
+
+				items[i] = new Gtk.MenuItem(entry.title);
+				items[i].Name = entry.action;
+				items[i].Activated += entry.handle;
+				items[i].Show();
+
+				if (entry.parent >= 0)
+				{
+					if (menus[entry.parent] == null)
+					{
+						menus[entry.parent] = new Gtk.Menu();
+						items[entry.parent].Sensitive = false;
+						items[entry.parent].Submenu = menus[entry.parent];
+					}
+
+					menus[entries[i].parent].Append(items[i]);
+				}
+			}
+
+			Gtk.Menu menu = new Gtk.Menu();
+
+			for(int i = 0; i < entries.Length; i++)
+				menu.Append(items[i]);
+
+			menu.Popup();
 		}
 
 	/*
