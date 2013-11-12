@@ -34,6 +34,12 @@ namespace ToxSharpBasic
 		void ToxGroupchatMessage(int groupnumber, int friendgroupnumber, string message);
 	}
 
+	public interface IToxSharpRendezvous
+	{
+		void ToxRendezvousFound(Sys.IntPtr X, ToxKey key);
+		byte ToxRendezvousTimeout(Sys.IntPtr X);
+	}
+
 	public enum FriendPresenceState { Unknown, Away, Busy, Invalid };
 
 	public class ToxKey : Sys.IComparable, Sys.IEquatable<ToxKey>
@@ -108,6 +114,7 @@ namespace ToxSharpBasic
 		protected IToxSharpBasic cbbasic = null;
 		protected IToxSharpFriend cbfriend = null;
 		protected IToxSharpGroup cbgroup = null;
+		protected IToxSharpRendezvous cbrendezvous = null;
 
 		protected Sys.IntPtr tox = Sys.IntPtr.Zero;
 		protected Sys.Threading.Mutex toxmutex = null;
@@ -241,11 +248,12 @@ namespace ToxSharpBasic
 			}
 		}
 
-		public void ToxInit(IToxSharpBasic cbbasic, IToxSharpFriend cbfriend, IToxSharpGroup cbgroup)
+		public void ToxInit(IToxSharpBasic cbbasic, IToxSharpFriend cbfriend, IToxSharpGroup cbgroup, IToxSharpRendezvous cbrendezvous)
 		{
 			this.cbbasic = cbbasic;
 			this.cbfriend = cbfriend;
 			this.cbgroup = cbgroup;
+			this.cbrendezvous = cbrendezvous;
 
 			toxmutex = new Sys.Threading.Mutex();
 			if (toxmutex == null)
@@ -1019,6 +1027,80 @@ namespace ToxSharpBasic
 			tox_callback_group_message(tox, cbgroupchatmessage, Sys.IntPtr.Zero);
 			toxmutex.ReleaseMutex();
 		}
+
+/*****************************************************************************/
+/*****************************************************************************/
+/*****************************************************************************/
+
+		// int tox_rendezvous(Tox *tox, char *secret, uint64_t at,
+		//          void (*found)(void *user data, uint8_t *friend_address),
+        //          uint8_t (*timeout)(void *userdata), void *userdata);
+
+		protected delegate void CallBackDelegateRendezVousFound(Sys.IntPtr X, [SRIOp.MarshalAs(SRIOp.UnmanagedType.LPArray, SizeConst = 38)] byte[] friendaddress);
+		protected CallBackDelegateRendezVousFound cbrendezvousfound;
+
+		protected void ToxRendezvousFound(Sys.IntPtr X, byte[] friendaddressbin)
+		{
+			if (cbrendezvous != null)
+			{
+				ToxKey friendaddresskey = new ToxKey(friendaddressbin);
+				cbrendezvous.ToxRendezvousFound(X, friendaddresskey);
+			}
+		}
+
+		protected delegate byte CallBackDelegateRendezTimeout(Sys.IntPtr X);
+		protected CallBackDelegateRendezTimeout cbrendezvoustimeout;
+
+		protected byte ToxRendezvousTimeout(Sys.IntPtr X)
+		{
+			if (cbrendezvous != null)
+				return cbrendezvous.ToxRendezvousTimeout(X);
+			else
+				return 0;
+		}
+
+		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
+		private static extern int tox_rendezvous(Sys.IntPtr tox, byte[] secret, Sys.UInt64 time, CallBackDelegateRendezVousFound cbrendezvousfound,
+		                                         CallBackDelegateRendezTimeout cbrendezvoustimeout, Sys.IntPtr X);
+
+		protected static Sys.UInt64 ToUnixTime(Sys.DateTime date)
+	    {
+	        Sys.DateTime epoch = new Sys.DateTime(1970, 1, 1, 0, 0, 0, Sys.DateTimeKind.Utc);
+	        return Sys.Convert.ToUInt64((date.ToUniversalTime() - epoch).TotalSeconds);
+	    }
+
+		public int ToxPublish(Sys.IntPtr X, string secretstr, Sys.DateTime datetime)
+		{
+			if (cbrendezvousfound == null)
+				cbrendezvousfound = new CallBackDelegateRendezVousFound(ToxRendezvousFound);
+			if (cbrendezvoustimeout == null)
+				cbrendezvoustimeout = new CallBackDelegateRendezTimeout(ToxRendezvousTimeout);
+
+			byte[] secretbin = System.Text.Encoding.UTF8.GetBytes(secretstr + '\0');
+			Sys.UInt64 unixtime = ToUnixTime(datetime);
+
+			int res = -1;
+
+			try
+			{
+				toxmutex.WaitOne();
+				res = tox_rendezvous(tox, secretbin, unixtime, cbrendezvousfound, cbrendezvoustimeout, X);
+			}
+			catch (Sys.EntryPointNotFoundException e)
+			{
+				res = -2;
+			}
+			finally
+			{
+				toxmutex.ReleaseMutex();
+			}
+
+			return res;
+		}
+
+/*****************************************************************************/
+/*****************************************************************************/
+/*****************************************************************************/
 
 		protected static string CutAtNul(string data)
 		{

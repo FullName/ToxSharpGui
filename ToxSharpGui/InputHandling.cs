@@ -168,6 +168,49 @@ namespace ToxSharpBasic
 				return 1;
 			}
 
+			if ((len > 1) && (text.Substring(0, 2) == "/r"))
+			{
+				if (len < 16)
+				{
+					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Command allows a time (format: @HH:MM, e.g. @03:05) and requires a text of at least 16 characters.\n");
+					return 0;
+				}
+
+				char[] separator = new char[1];
+				separator[0] = ' ';
+				string[] parts = text.Split(separator, 3);
+				if (parts.Length < 2)
+				{
+					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Command not recognized.");
+					return 0;
+				}
+
+				if (parts[1].Substring(0, 1) == "@")
+				{
+					TextAdd(Interfaces.SourceType.System, 0, "DEBUG", "Rendezvous: Timestamp not yet implemented, skipping.");
+					text = parts[2];
+				}
+				else
+					text = parts[1] + " " + parts[2];
+
+				RendezvousTreeNode rendezvous = datareactions.FindRendezvous(text);
+				// TODO: rendezvous ID
+				int res = toxsharp.ToxPublish(new IntPtr(312), text, DateTime.Now);
+				if (res > 0)
+					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Set up successfully.\n");
+				else if (res == 0)
+					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to set up due to invalid input.\n");
+				else if (res < 0)
+				{
+					if (res == -2)
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to set up, function missing.\n");
+					else
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to set up for unknown reason.\n");
+				}
+
+				return res;
+			}
+
 			if ((len > 1) && (text.Substring(0, 2) =="/n"))
 			{
 				int space = text.IndexOf(' ');
@@ -221,9 +264,10 @@ namespace ToxSharpBasic
 						"/q(uit)           : exit the program\n" +
 						"/i(d)             : copies your ID to the clipboard.\n" +
 						"/n(ame) ...       : sets your name\n" +
-						"/a(m) <X>           : sets you to one of 'here', 'away', busy'\n" +
-						"/s(tate) ...        : sets your state (any text, e.g. 'amused')\n" +
-						"/d(o) ...           : sends an action to the current conversation partner\n" +
+						"/a(m) <X>         : sets you to one of 'here', 'away', busy'\n" +
+						"/s(tate) ...      : sets your state (any text, e.g. 'amused')\n" +
+						"/d(o) ...         : sends an action to the current conversation partner\n" +
+						"/r(endezvous) ... : sets up a rendezvous\n" +
 						"/h(elp) f(riends) : commands related to friends\n" +
 						"/h(elp) g(roups)  : commands related to groups";
 					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", message);

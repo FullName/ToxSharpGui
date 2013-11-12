@@ -51,7 +51,7 @@ namespace ToxSharpBasic
 
 			uiwindow.Init(toxsharp, datastorage, inputhandling, popups);
 			glue.Init(toxsharp, uireactions, datastorage);
-			toxsharp.ToxInit(glue, glue, glue);
+			toxsharp.ToxInit(glue, glue, glue, glue);
 
 			int bootstrapped_cnt = toxsharp.ToxBootstrap();
 			if (bootstrapped_cnt <= 0)

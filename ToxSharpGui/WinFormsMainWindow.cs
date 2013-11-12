@@ -143,9 +143,6 @@ namespace ToxSharpWinForms
 			WinForms.ContextMenu[] menus = new WinForms.ContextMenu[entries.Length];
 			WinForms.MenuItem[] items = new WinForms.MenuItem[entries.Length];
 
-			// Gtk.Menu[] menus = new Gtk.Menu[entries.Length];
-			// Gtk.MenuItem[] items = new Gtk.MenuItem[entries.Length];
-
 			for(int i = 0; i < entries.Length; i++)
 			{
 				Interfaces.PopupEntry entry = entries[i];
@@ -177,14 +174,18 @@ namespace ToxSharpWinForms
 
 		public string PopupMenuAction(object o, System.EventArgs args)
 		{
-			return null;
+			WinForms.MenuItem item = o as WinForms.MenuItem;
+			if (item != null)
+				return item.Name;
+			else
+				return null;
 		}
 
 		// ask user for two strings: the ID and a message for a friend-invite
 		public bool AskIDMessage(string message, string name1, string name2, out string input1, out string input2)
 		{
 			// TODO: dialog
-			TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "Not yet implemented. Use /fadd.");
+			TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "Not yet implemented. Use the command line. Sorry!");
 
 			input1 = null;
 			input2 = null;
@@ -265,6 +266,7 @@ namespace ToxSharpWinForms
 			Closed += ClosedHandler;
 
 			// TODO: Focus => tb
+			input.Select();
 		}
 
 		void TreeViewKeyUp (object sender, WinForms.KeyEventArgs e)

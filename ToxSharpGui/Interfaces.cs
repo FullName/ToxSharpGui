@@ -64,6 +64,8 @@ namespace ToxSharpBasic
 			int FindFriendsWithKeyStartingWithID(string idpartial, out FriendTreeNode friend);
 			int FindFriendsWithNameOrKeyStartingWithID(string idpartial, out FriendTreeNode friend);
 
+			RendezvousTreeNode FindRendezvous(string text);
+
 			// creates a tree node, typeid is stored in local store
 			void Add(TypeIDTreeNode typeid);
 

@@ -18,127 +18,54 @@ namespace ToxSharpGTK
 
 		public bool GetByTypeCreate(TypeIDTreeNode.EntryType type, out TreeIter iter)
 		{
-			switch(type)
-			{
-				case TypeIDTreeNode.EntryType.Friend:
-					iter = frienditer;
-					break;
-
-				case TypeIDTreeNode.EntryType.Stranger:
-					iter = strangeriter;
-					break;
-
-				case TypeIDTreeNode.EntryType.Group:
-					iter = groupiter;
-					break;
-
-				case TypeIDTreeNode.EntryType.Invitation:
-					iter = invitationiter;
-					break;
-			}
-
+			iter = GetByType(type, true);
 			return !iter.Equals(TreeIter.Zero);
 		}
 
 		public bool GetByTypeRaw(TypeIDTreeNode.EntryType type, out TreeIter iter)
 		{
-			switch(type)
-			{
-				case TypeIDTreeNode.EntryType.Friend:
-					iter = _frienditer;
-					break;
-					
-				case TypeIDTreeNode.EntryType.Stranger:
-					iter = _strangeriter;
-					break;
-
-				case TypeIDTreeNode.EntryType.Group:
-					iter = _groupiter;
-					break;
-
-				case TypeIDTreeNode.EntryType.Invitation:
-					iter = _invitationiter;
-					break;
-			}
-
+			iter = GetByType(type, false);
 			return !iter.Equals(TreeIter.Zero);
 		}
 
 		public void SetByTypeRaw(TypeIDTreeNode.EntryType type, TreeIter iter)
 		{
-			if (type == TypeIDTreeNode.EntryType.Friend)
-				_frienditer = iter;
-			if (type == TypeIDTreeNode.EntryType.Stranger)
-				_strangeriter = iter;
-			if (type == TypeIDTreeNode.EntryType.Group)
-				_groupiter = iter;
-			if (type == TypeIDTreeNode.EntryType.Invitation)
-				_invitationiter = iter;
+			if (_iter == null)
+				return;
+
+			uint at = (uint)(type - 1);
+			if (at >= 5)
+				return;
+
+			_iter[at] = iter;
 		}
 
-		protected TreeIter _frienditer;
-		protected TreeIter _strangeriter;
-		protected TreeIter _groupiter;
-		protected TreeIter _invitationiter;
+		protected TreeIter[] _iter;
 
-		public TreeIter frienditer
+		protected TreeIter GetByType(TypeIDTreeNode.EntryType type, bool create)
 		{
-			get
-			{
-				if (_frienditer.Equals(TreeIter.Zero))
-				{
-					_frienditer = store.AppendValues(HolderTreeNode.HeaderNew(TypeIDTreeNode.EntryType.Friend));
-					if (!_strangeriter.Equals(TreeIter.Zero))
-						store.MoveBefore(_frienditer, _strangeriter);
-					else if (!_groupiter.Equals(TreeIter.Zero))
-						store.MoveBefore(_frienditer, _groupiter);
-					else if (!_invitationiter.Equals(TreeIter.Zero))
-						store.MoveBefore(_frienditer, _invitationiter);
-				}
-	
-				return _frienditer;
-			}
-		}
+			if (type == TypeIDTreeNode.EntryType.Header)
+				return TreeIter.Zero;
 
-		public TreeIter strangeriter
-		{
-			get
-			{
-				if (_strangeriter.Equals(TreeIter.Zero))
-				{
-					_strangeriter = store.AppendValues(HolderTreeNode.HeaderNew(TypeIDTreeNode.EntryType.Stranger));
-					if (!_groupiter.Equals(TreeIter.Zero))
-						store.MoveBefore(_strangeriter, _groupiter);
-					else if (!_invitationiter.Equals(TreeIter.Zero))
-						store.MoveBefore(_strangeriter, _invitationiter);
-				}
-	
-				return _strangeriter;
-			}
-		}
-	
-		public TreeIter groupiter
-		{
-			get
-			{
-				if (_groupiter.Equals(TreeIter.Zero))
-					_groupiter = store.AppendValues(HolderTreeNode.HeaderNew(TypeIDTreeNode.EntryType.Group));
-				if (!_invitationiter.Equals(TreeIter.Zero))
-					store.MoveBefore(_groupiter, _invitationiter);
+			if (_iter == null)
+				_iter = new TreeIter[5];
 
-				return _groupiter;
-			}
-		}
+			uint at = (uint)(type - 1);
+			if (at >= 5)
+				return TreeIter.Zero;
 
-		public TreeIter invitationiter
-		{
-			get
+			if (create && _iter[at].Equals(TreeIter.Zero))
 			{
-				if (_invitationiter.Equals(TreeIter.Zero))
-					_invitationiter = store.AppendValues(HolderTreeNode.HeaderNew(TypeIDTreeNode.EntryType.Invitation));
-
-				return _invitationiter;
+				_iter[at] = store.AppendValues(HolderTreeNode.HeaderNew(type));
+				for(uint next = at + 1; next < 5; next++)
+					if (!_iter[next].Equals(TreeIter.Zero))
+					{
+					    store.MoveBefore(_iter[at], _iter[next]);
+						break;
+					}
 			}
+
+			return _iter[at];
 		}
 
 		public void Delete(TypeIDTreeNode typeid)
@@ -236,6 +163,9 @@ namespace ToxSharpGTK
 					break;
 				case TypeIDTreeNode.EntryType.Invitation:
 					text = "+#?";
+					break;
+				case TypeIDTreeNode.EntryType.Rendezvous:
+					text = "^?";
 					break;
 				default:
 					text = "??";

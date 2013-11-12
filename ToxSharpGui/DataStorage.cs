@@ -6,7 +6,7 @@ namespace ToxSharpBasic
 {
 	public class TypeIDTreeNode
 	{
-		public enum EntryType { Header, Friend, Stranger, Group, Invitation };
+		public enum EntryType { Header, Friend, Stranger, Group, Invitation, Rendezvous };
 
 		public EntryType entryType;
 		public UInt16 id;
@@ -52,6 +52,9 @@ namespace ToxSharpBasic
 					break;
 				case EntryType.Invitation:
 					title = "Invites";
+					break;
+				case EntryType.Rendezvous:
+					title = "Rendezvous";
 					break;
 				default:
 					title = "???";
@@ -197,6 +200,31 @@ namespace ToxSharpBasic
 		}
 	}
 
+	public class RendezvousTreeNode : TypeIDTreeNode
+	{
+		protected static ushort unique = 0;
+
+		public string   text;
+		public DateTime time;
+
+		public RendezvousTreeNode(string text, DateTime time) : base(EntryType.Rendezvous, unique)
+		{
+			unique++;
+			this.text = text;
+			this.time = time;
+		}
+
+		public override string Text()
+		{
+			return "[" + time.ToShortTimeString() + "] " + text.Substring(0, 16) + "...";
+		}
+		public override string TooltipText()
+		{
+			return "[" + time.ToShortDateString() + " " + time.ToShortTimeString() + "]\n"
+					+ text.Substring(0, 16) + "...";
+		}
+	}
+
 	public class DataStorage : Interfaces.IDataReactions
 	{
 		protected class DataStorageSub
@@ -235,6 +263,7 @@ namespace ToxSharpBasic
 			data.Add(TypeIDTreeNode.EntryType.Stranger, new DataStorageSubKeyKey());
 			data.Add(TypeIDTreeNode.EntryType.Group, new DataStorageSubKeyUInt16());
 			data.Add(TypeIDTreeNode.EntryType.Invitation, new DataStorageSubKeyKey());
+			data.Add(TypeIDTreeNode.EntryType.Rendezvous, new DataStorageSubKeyUInt16());
 		}
 
 		public void Add(TypeIDTreeNode typeid)
@@ -243,26 +272,23 @@ namespace ToxSharpBasic
 			if (!data.TryGetValue(typeid.entryType, out sub))
 				return;
 
-			if ((typeid.entryType == TypeIDTreeNode.EntryType.Friend) ||
-				(typeid.entryType == TypeIDTreeNode.EntryType.Group))
+			switch(typeid.entryType)
 			{
-				DataStorageSubKeyUInt16 subint = sub as DataStorageSubKeyUInt16;
-				if (subint != null)
-					subint.element.Add(typeid.id, typeid);
-			}
-			else if (typeid.entryType == TypeIDTreeNode.EntryType.Stranger)
-			{
-				DataStorageSubKeyKey subkey = sub as DataStorageSubKeyKey;
-				StrangerTreeNode stranger = typeid as StrangerTreeNode;
-				if ((subkey != null) && (stranger != null))
-					subkey.element.Add(stranger.key, typeid);
-			}
-			else if (typeid.entryType == TypeIDTreeNode.EntryType.Invitation)
-			{
-				DataStorageSubKeyKey subkey = sub as DataStorageSubKeyKey;
-				InvitationTreeNode invite = typeid as InvitationTreeNode;
-				if ((subkey != null) && (invite != null))
-					subkey.element.Add(invite.key, typeid);
+				case TypeIDTreeNode.EntryType.Friend:
+				case TypeIDTreeNode.EntryType.Group:
+				case TypeIDTreeNode.EntryType.Rendezvous:
+					DataStorageSubKeyUInt16 subint = sub as DataStorageSubKeyUInt16;
+					if (subint != null)
+						subint.element.Add(typeid.id, typeid);
+					break;
+
+				case TypeIDTreeNode.EntryType.Stranger:
+				case TypeIDTreeNode.EntryType.Invitation:
+					DataStorageSubKeyKey subkey = sub as DataStorageSubKeyKey;
+					KeyTreeNode keynode = typeid as KeyTreeNode;
+					if ((subkey != null) && (keynode != null))
+						subkey.element.Add(keynode.key, typeid);
+					break;
 			}
 		}
 
@@ -272,26 +298,22 @@ namespace ToxSharpBasic
 			if (!data.TryGetValue(typeid.entryType, out sub))
 				return;
 
-			if ((typeid.entryType == TypeIDTreeNode.EntryType.Friend) ||
-				(typeid.entryType == TypeIDTreeNode.EntryType.Group))
+			switch(typeid.entryType)
 			{
-				DataStorageSubKeyUInt16 subint = sub as DataStorageSubKeyUInt16;
-				if (subint != null)
-					subint.element.Remove(typeid.id);
-			}
-			else if (typeid.entryType == TypeIDTreeNode.EntryType.Stranger)
-			{
-				DataStorageSubKeyKey subkey = sub as DataStorageSubKeyKey;
-				StrangerTreeNode stranger = typeid as StrangerTreeNode;
-				if ((subkey != null) && (stranger != null))
-					subkey.element.Remove(stranger.key);
-			}
-			else if (typeid.entryType == TypeIDTreeNode.EntryType.Invitation)
-			{
-				DataStorageSubKeyKey subkey = sub as DataStorageSubKeyKey;
-				InvitationTreeNode invite = typeid as InvitationTreeNode;
-				if ((subkey != null) && (invite != null))
-					subkey.element.Remove(invite.key);
+				case TypeIDTreeNode.EntryType.Friend:
+				case TypeIDTreeNode.EntryType.Group:
+					DataStorageSubKeyUInt16 subint = sub as DataStorageSubKeyUInt16;
+					if (subint != null)
+						subint.element.Remove(typeid.id);
+					break;
+
+				case TypeIDTreeNode.EntryType.Stranger:
+				case TypeIDTreeNode.EntryType.Invitation:
+					DataStorageSubKeyKey subkey = sub as DataStorageSubKeyKey;
+					KeyTreeNode keynode = typeid as KeyTreeNode;
+					if ((subkey != null) && (keynode != null))
+						subkey.element.Remove(keynode.key);
+					break;
 			}
 		}
 
@@ -392,6 +414,26 @@ namespace ToxSharpBasic
 			}
 
 			return rc;
+		}
+
+		public RendezvousTreeNode FindRendezvous(string text)
+		{
+			DataStorageSub sub;
+			if (!data.TryGetValue(TypeIDTreeNode.EntryType.Rendezvous, out sub))
+				return null;
+
+			DataStorageSubKeyUInt16 subactual = sub as DataStorageSubKeyUInt16;
+			if (subactual == null)
+				return null;
+
+			foreach(TypeIDTreeNode typeid in subactual.element.Values)
+			{
+				RendezvousTreeNode rendezvous = typeid as RendezvousTreeNode;
+				if (rendezvous.text == text)
+					return rendezvous;
+			}
+
+			return null;
 		}
 
 		public void FriendCount(out int online, out int total)

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace ToxSharpBasic
 {
-	public class ToxGlue : IToxSharpBasic, IToxSharpFriend, IToxSharpGroup
+	public class ToxGlue : IToxSharpBasic, IToxSharpFriend, IToxSharpGroup, IToxSharpRendezvous
 	{
 		protected ToxInterface toxsharp = null;
 		protected Interfaces.IUIReactions uireactions = null;
@@ -224,6 +224,17 @@ namespace ToxSharpBasic
 		public void ToxGroupchatMessage(int groupnumber, int friendgroupnumber, string message)
 		{
 			uireactions.TextAdd(Interfaces.SourceType.Group, (UInt16)groupnumber, "#" + groupnumber + " - " + friendgroupnumber, message);
+		}
+
+		public void ToxRendezvousFound(IntPtr X, ToxKey friendaddress)
+		{
+			uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Match! [" + friendaddress.str + "]");
+		}
+
+		public byte ToxRendezvousTimeout(IntPtr X)
+		{
+			uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Timeout.");
+			return 0;
 		}
 	}
 }

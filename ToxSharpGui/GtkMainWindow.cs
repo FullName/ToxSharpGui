@@ -159,7 +159,8 @@ namespace ToxSharpGTK
 
 				items[i] = new Gtk.MenuItem(entry.title);
 				items[i].Name = entry.action;
-				items[i].Activated += entry.handle;
+				if (entry.handle != null)
+					items[i].Activated += entry.handle;
 				items[i].Show();
 
 				if (entry.parent >= 0)
@@ -171,7 +172,7 @@ namespace ToxSharpGTK
 						items[entry.parent].Submenu = menus[entry.parent];
 					}
 
-					menus[entries[i].parent].Append(items[i]);
+					menus[entry.parent].Append(items[i]);
 				}
 			}
 

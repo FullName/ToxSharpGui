@@ -69,7 +69,65 @@ namespace ToxSharpBasic
 				return;
 			}
 
-				TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "Unhandled new something: " + action);
+			if (action == "new:rendezvous")
+			{
+				string input1, input2;
+				if (!uireactions.AskIDMessage("You can enter a date&time, if missing, 'now' is assumed.\nYou must enter a text of at least 16 characters.",
+											  "date/time:", "text:", out input1, out input2))
+					return;
+
+				if (input2.Length < 16)
+					return;
+
+				DateTime time = DateTime.Now;
+				if (input1.Length > 0)
+				{
+					if (!DateTime.TryParse(input1, out time))
+					{
+						uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to parse input for date/time.");
+						return;
+					}
+
+					if (time < DateTime.Now)
+					{
+						uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Input for date/time is in the past.");
+						return;
+					}
+				}
+
+				RendezvousTreeNode rendezvous = datareactions.FindRendezvous(input2);
+				if (rendezvous != null)
+				{
+					if (time == rendezvous.time)
+					{
+						uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Identical rendezvous already in place.");
+						return;
+					}
+
+					rendezvous.time = time;
+				}
+
+				// TODO: good id
+				int res = toxsharp.ToxPublish(new IntPtr(42), input2, time);
+				if (res > 0)
+				{
+					uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous request has been successful.");
+					if (rendezvous == null)
+					{
+						rendezvous = new RendezvousTreeNode(input2, time);
+						datareactions.Add(rendezvous);
+						uireactions.TreeAdd(rendezvous);
+					}
+				}
+				else if (res == -2)
+					uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to publish, function missing.");
+				else
+					uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to publish unexpectedly. Sorry!");
+
+				return;
+			}
+
+			TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "Unhandled new something: " + action);
 		}
 
 		public void TreeViewPopupFriend(object o, System.EventArgs args)
@@ -232,6 +290,15 @@ namespace ToxSharpBasic
 				string keystr = action.Substring(colon2 + 1);
 				TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "invite action: DECLINE => [" + keystr + "]: TODO.");
 			}
+		}
+
+		protected void TreeViewPopupPublish(object o, System.EventArgs args)
+		{
+			string action = uireactions.PopupMenuAction(o, args);
+			if (action == null)
+				return;
+
+			TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "publish action: " + action);
 		}
 
 		public void TreePopup(object parent, Point position, TypeIDTreeNode typeid, Button button, Click click)
@@ -418,6 +485,31 @@ namespace ToxSharpBasic
 
 						uireactions.PopupMenuDo(parent, position, entries);
 					}
+
+					if (typeid.entryType == TypeIDTreeNode.EntryType.Rendezvous)
+					{
+						RendezvousTreeNode rendezvous = typeid as RendezvousTreeNode;
+						if (rendezvous == null)
+							return;
+
+						Interfaces.PopupEntry[] entries = new Interfaces.PopupEntry[2];
+
+						Interfaces.PopupEntry entry = new Interfaces.PopupEntry();
+						entry.parent = -1;
+						entry.title = "Publish again";
+						entry.action = "publish:again";
+						entry.handle += TreeViewPopupPublish;
+						entries[0] = entry;
+
+						entry = new Interfaces.PopupEntry();
+						entry.parent = -1;
+						entry.title = "Publish next";
+						entry.action = "publish:next";
+						entry.handle += TreeViewPopupPublish;
+						entries[1] = entry;
+
+						uireactions.PopupMenuDo(parent, position, entries);
+					}
 				}
 			}
 			else
@@ -426,7 +518,7 @@ namespace ToxSharpBasic
 				if (button != Button.Right)
 					return;
 
-				Interfaces.PopupEntry[] entries = new Interfaces.PopupEntry[2];
+				Interfaces.PopupEntry[] entries = new Interfaces.PopupEntry[3];
 
 				Interfaces.PopupEntry entry = new Interfaces.PopupEntry();
 				entry.parent = -1;
@@ -441,6 +533,13 @@ namespace ToxSharpBasic
 				entry.action = "new:group";
 				entry.handle += TreeViewPopupNew;
 				entries[1] = entry;
+
+				entry = new Interfaces.PopupEntry();
+				entry.parent = -1;
+				entry.title = "new rendezvous";
+				entry.action = "new:rendezvous";
+				entry.handle += TreeViewPopupNew;
+				entries[2] = entry;
 
 				uireactions.PopupMenuDo(parent, position, entries);
 			}
