@@ -8,7 +8,7 @@
     <widget-library name="glade-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f" />
     <widget-library name="../bin/Debug/ToxSharpGui.exe" internal="true" />
   </import>
-  <widget class="Gtk.Window" id="ToxSharpGTK.GtkMainWindow" design-size="532 399">
+  <widget class="Gtk.Window" id="ToxSharpGTK.GtkMainWindow" design-size="623 399">
     <property name="MemberName" />
     <property name="Events">ExposureMask, StructureMask</property>
     <property name="Title" translatable="yes">MainWindow</property>
@@ -84,13 +84,14 @@
                     <property name="MemberName" />
                     <property name="HscrollbarPolicy">Never</property>
                     <property name="ShadowType">In</property>
+                    <property name="WindowPlacement">BottomRight</property>
+                    <property name="BorderWidth">5</property>
                     <child>
                       <widget class="Gtk.NodeView" id="nodeview1">
                         <property name="MemberName" />
                         <property name="WidthRequest">256</property>
                         <property name="CanFocus">True</property>
                         <property name="ShowScrollbars">True</property>
-                        <property name="HeadersVisible">False</property>
                       </widget>
                     </child>
                   </widget>

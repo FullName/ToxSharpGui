@@ -254,35 +254,46 @@ namespace ToxSharpGTK
 			treeview1.KeyReleaseEvent += OnTreeview1KeyReleaseEvent;
 			treeview1.PopupMenu += OnTreeview1PopupMenu;
 
-			nodeview1.AppendColumn("Source", new Gtk.CellRendererText(), "text", 0);
-
 			Gtk.CellRendererText renderer1 = new Gtk.CellRendererText();
-			// utterly braindamaged: useless without width. WTF.
-			renderer1.WrapMode = Pango.WrapMode.WordChar;
-			// and width cannot be set sanely, or adjusted sanely. WAICF.
-			renderer1.WrapWidth = 400;
 
-			nodeview1.AppendColumn("Text", renderer1, "text", 1);
+			nodeview1.AppendColumn("Source", renderer1, "text", 0);
+
+			Gtk.CellRendererText renderer2 = new Gtk.CellRendererText();
+			renderer2.WrapMode = Pango.WrapMode.WordChar;
+			renderer2.WrapWidth = 128;
+
+			nodeview1.AppendColumn("Text", renderer2, "text", 1);
+
+			nodeview1.HeadersVisible = true;
 
 			nodeview1.Model = liststoreall;
+
+			nodeview1.SizeAllocated += NodeViewSizeAllocated;
 			// on resize of nodeview1, set renderer1.wrapwidth
 		}
 
-		public void WidthNew(int Width)
+		int Renderer2WrapWidth = -1;
+
+		void NodeViewSizeAllocated(object o, SizeAllocatedArgs args)
 		{
-	/*
-			 * ScrolledWindow scrollwindow = notebook1.CurrentPageWidget as ScrolledWindow;
-			NodeView nodeview = scrollwindow.Child as NodeView;
+			NodeView nodeview = o as NodeView;
 
 			TreeViewColumn column1 = nodeview.Columns[0] as TreeViewColumn;
-			CellRendererText renderer1 = column1.CellRenderers[0] as CellRendererText;
 
 			TreeViewColumn column2 = nodeview.Columns[1] as TreeViewColumn;
 			CellRendererText renderer2 = column2.CellRenderers[0] as CellRendererText;
-	*/
-	//		renderer2.WrapWidth = Width - hbox1.WidthRequest - 30 - renderer1.Width;
-	//		renderer2.Width = Width - hbox1.WidthRequest - 25 - renderer1.Width;
+
+
+			if (Renderer2WrapWidth != args.Allocation.Width - column1.Width)
+			{
+				// string info = "WW: " + Renderer2WrapWidth + " => " + (args.Allocation.Width - column1.Width);
+				// TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", info);
+
+				Renderer2WrapWidth = args.Allocation.Width - column1.Width;
+				renderer2.WrapWidth = Renderer2WrapWidth;
+			}
 		}
+
 	/*
 	 *
 	 *

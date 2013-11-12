@@ -68,12 +68,10 @@ namespace ToxSharpGTK
 			ConnectState(false, null);
 			TreesSetup();
 
-			// C1ECE4620571325F8211649B462EC1B3398B87FF13B363ACD682F5A27BC4FD46937EAAF221F2
 			size = new Size();
 			size.width = 0;
 			size.height = 0;
 
-	//		ConfigureEvent += OnConfigure;
 			entry1.KeyReleaseEvent += OnEntryKeyReleased;
 			DeleteEvent += OnDeleteEvent;
 
@@ -84,16 +82,6 @@ namespace ToxSharpGTK
 		{
 			Show();
 			Application.Run();
-		}
-
-		[GLib.ConnectBefore]
-		protected void OnConfigure(object o, ConfigureEventArgs args)
-		{
-			if (size.width != args.Event.Width)
-			{
-				size.width = args.Event.Width;
-				WidthNew(size.width);
-			}
 		}
 
 	/*****************************************************************************/
