@@ -49,7 +49,11 @@ namespace ToxSharpBasic
 				int friendid = toxsharp.ToxFriendAdd(friendkey, friendmsg);
 				if (friendid >= 0)
 				{
-					TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "Friend request sent to " + friendkey.str + ".");
+					int add = 4;
+					string friendkeystrspaced = friendkeystr.Substring(0, add);
+					for(int i = add; i < ToxInterface.ID_LEN_BINARY * 2; i += add)
+						friendkeystrspaced += " " + friendkeystr.Substring(i, add);
+					TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "Friend request sent to " + friendkeystrspaced + ".");
 					toxsharp.ToxFriendInit(friendid);
 				}
 

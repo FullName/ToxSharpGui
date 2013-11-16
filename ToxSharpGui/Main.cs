@@ -15,11 +15,15 @@ namespace ToxSharpBasic
 		{
 			string uiname = "gtk";
 			// string uiname = "winforms";
+			System.Console.WriteLine("Default UI is " + uiname + ". Use --gui=<...> to select another.");
 
 			object uiobject = null;
 			foreach(string name in args)
 				if (name.Substring(0, 6) == "--gui=")
+				{
 					uiname = name.Substring(6);
+					System.Console.WriteLine("Selected UI is " + uiname + ".");
+				}
 
 			uiname = uiname.ToLower();
 			if (uiname == "gtk")
@@ -31,7 +35,10 @@ namespace ToxSharpBasic
 				uiobject = new ToxSharpWinForms.WinFormsMainWindow();
 
 			if (uiobject == null)
+			{
+				System.Console.WriteLine("Failed to initialize UI " + uiname + ". Exiting...");
 				return;
+			}
 
 			Interfaces.IUIReactions uireactions = uiobject as Interfaces.IUIReactions;
 			IMainWindow uiwindow = uiobject as IMainWindow;
@@ -40,7 +47,6 @@ namespace ToxSharpBasic
 
 			foreach(string name in System.IO.Directory.EnumerateFiles(".", "*.log"))
 				System.IO.File.Delete(name);
-
 
 			DataStorage datastorage = new DataStorage();
 			ToxInterface toxsharp = new ToxInterface(args);

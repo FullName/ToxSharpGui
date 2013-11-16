@@ -86,7 +86,6 @@ namespace ToxSharpGTK
 						if (holder.typeid == typeid)
 						{
 							store.Remove(ref iter);
-							Delete(typeid);
 							break;
 						}
 					}
