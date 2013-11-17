@@ -202,16 +202,26 @@ namespace ToxSharpBasic
 
 	public class RendezvousTreeNode : TypeIDTreeNode
 	{
-		protected static ushort unique = 0;
+		protected static ushort unique = 1;
 
 		public string   text;
 		public DateTime time;
+		public bool current;
 
 		public RendezvousTreeNode(string text, DateTime time) : base(EntryType.Rendezvous, unique)
 		{
 			unique++;
+			if (unique == ushort.MaxValue)
+				unique = 1;
+
 			this.text = text;
 			this.time = time;
+			this.current = false;
+		}
+
+		public override ushort Check()
+		{
+			return current ? (UInt16)2 : (UInt16)1;
 		}
 
 		public override string Text()

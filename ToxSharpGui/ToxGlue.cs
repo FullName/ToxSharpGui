@@ -226,14 +226,21 @@ namespace ToxSharpBasic
 			uireactions.TextAdd(Interfaces.SourceType.Group, (UInt16)groupnumber, "#" + groupnumber + " - " + friendgroupnumber, message);
 		}
 
-		public void ToxRendezvousFound(IntPtr X, ToxKey friendaddress)
+		public void ToxRendezvousFound(ushort ID, ToxKey friendaddress)
 		{
 			uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Match! [" + friendaddress.str + "]");
 		}
 
-		public byte ToxRendezvousTimeout(IntPtr X)
+		public byte ToxRendezvousTimeout(ushort ID)
 		{
 			uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Timeout.");
+			RendezvousTreeNode rendezvous = datareactions.Find(TypeIDTreeNode.EntryType.Rendezvous, ID) as RendezvousTreeNode;
+			if (rendezvous != null)
+			{
+				rendezvous.current = false;
+				uireactions.TreeUpdate(rendezvous);
+			}
+
 			return 0;
 		}
 	}

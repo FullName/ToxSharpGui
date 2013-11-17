@@ -169,7 +169,8 @@ namespace ToxSharpGTK
 			for(int i = 0; i < entries.Length; i++)
 				menu.Append(items[i]);
 
-			menu.Parent = parent as Gtk.Widget;
+			// results in assert by GTK:
+			// menu.Parent = parent as Gtk.Widget;
 			menu.Popup();
 		}
 

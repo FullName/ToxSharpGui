@@ -194,16 +194,30 @@ namespace ToxSharpBasic
 					text = parts[1] + " " + parts[2];
 
 				RendezvousTreeNode rendezvous = datareactions.FindRendezvous(text);
-				// TODO: rendezvous ID
-				int res = toxsharp.ToxPublish(new IntPtr(312), text, DateTime.Now);
+				if (rendezvous == null)
+				{
+					rendezvous = new RendezvousTreeNode(text, DateTime.Now);
+					uireactions.TreeAdd(rendezvous);
+					datareactions.Add(rendezvous);
+				}
+
+				int res = toxsharp.ToxPublish(rendezvous.id, text, DateTime.Now);
 				if (res > 0)
+				{
 					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Set up successfully.\n");
+					rendezvous.current = true;
+					uireactions.TreeUpdate(rendezvous);
+				}
 				else if (res == 0)
 					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to set up due to invalid input.\n");
 				else if (res < 0)
 				{
 					if (res == -2)
 						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to set up, function missing.\n");
+					else if (res == -3)
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Oops. Invalid ID.\n");
+					else if (res == -4)
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Can't set up, different rendezvous already in progress.\n");
 					else
 						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to set up for unknown reason.\n");
 				}

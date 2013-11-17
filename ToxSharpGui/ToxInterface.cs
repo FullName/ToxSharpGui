@@ -36,8 +36,8 @@ namespace ToxSharpBasic
 
 	public interface IToxSharpRendezvous
 	{
-		void ToxRendezvousFound(Sys.IntPtr X, ToxKey key);
-		byte ToxRendezvousTimeout(Sys.IntPtr X);
+		void ToxRendezvousFound(ushort ID, ToxKey key);
+		byte ToxRendezvousTimeout(ushort ID);
 	}
 
 	public enum FriendPresenceState { Unknown, Away, Busy, Invalid };
@@ -1044,7 +1044,7 @@ namespace ToxSharpBasic
 			if (cbrendezvous != null)
 			{
 				ToxKey friendaddresskey = new ToxKey(friendaddressbin);
-				cbrendezvous.ToxRendezvousFound(X, friendaddresskey);
+				cbrendezvous.ToxRendezvousFound(publishid, friendaddresskey);
 			}
 		}
 
@@ -1053,10 +1053,15 @@ namespace ToxSharpBasic
 
 		protected byte ToxRendezvousTimeout(Sys.IntPtr X)
 		{
+			byte retval = 0;
+
 			if (cbrendezvous != null)
-				return cbrendezvous.ToxRendezvousTimeout(X);
-			else
-				return 0;
+				retval = cbrendezvous.ToxRendezvousTimeout(publishid);
+
+			if (retval == 0)
+				publishid = 0;
+
+			return retval;
 		}
 
 		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
@@ -1069,8 +1074,17 @@ namespace ToxSharpBasic
 	        return Sys.Convert.ToUInt64((date.ToUniversalTime() - epoch).TotalSeconds);
 	    }
 
-		public int ToxPublish(Sys.IntPtr X, string secretstr, Sys.DateTime datetime)
+		protected ushort publishid = 0;
+
+		public int ToxPublish(ushort ID, string secretstr, Sys.DateTime datetime)
 		{
+			if (ID == 0)
+				return -3;
+
+			if (publishid != 0)
+				if (publishid != ID)
+					return -4;
+
 			if (cbrendezvousfound == null)
 				cbrendezvousfound = new CallBackDelegateRendezVousFound(ToxRendezvousFound);
 			if (cbrendezvoustimeout == null)
@@ -1078,15 +1092,17 @@ namespace ToxSharpBasic
 
 			byte[] secretbin = System.Text.Encoding.UTF8.GetBytes(secretstr + '\0');
 			Sys.UInt64 unixtime = ToUnixTime(datetime);
-
+			Sys.IntPtr X = new Sys.IntPtr();
 			int res = -1;
 
 			try
 			{
 				toxmutex.WaitOne();
 				res = tox_rendezvous(tox, secretbin, unixtime, cbrendezvousfound, cbrendezvoustimeout, X);
+				if (res > 0)
+					publishid = ID;
 			}
-			catch (Sys.EntryPointNotFoundException e)
+			catch (Sys.EntryPointNotFoundException)
 			{
 				res = -2;
 			}
