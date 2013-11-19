@@ -32,12 +32,17 @@ namespace ToxSharpBasic
 			void TreeDel(TypeIDTreeNode typeid);
 			void TreeUpdate(TypeIDTreeNode typeid);
 
+			// left side: subtree
+			void TreeAddSub(TypeIDTreeNode typeid, TypeIDTreeNode parenttypeid);
+			void TreeDelSub(TypeIDTreeNode typeid, TypeIDTreeNode parenttypeid);
+			void TreeUpdateSub(TypeIDTreeNode typeid, TypeIDTreeNode parenttypeid);
+
 			// external: clipboard
 			void ClipboardSend(string text);
 
 			// right side: multi-tab
-			bool CurrentTypeID(out SourceType type, out System.UInt16 id);
-			void TextAdd(SourceType type, System.UInt16 id, string source, string text);
+			bool CurrentTypeID(out SourceType type, out UInt32 id);
+			void TextAdd(SourceType type, UInt32 id, string source, string text);
 
 			// create and execute a popup menu (added Do due to name clash for GTK)
 			void PopupMenuDo(object parent, Point position, PopupEntry[] entries);
@@ -54,11 +59,11 @@ namespace ToxSharpBasic
 		{
 			void FriendCount(out int friendsonline, out int friendstotal);
 
-			TypeIDTreeNode Find(TypeIDTreeNode.EntryType entrytype, UInt16 id);
+			TypeIDTreeNode Find(TypeIDTreeNode.EntryType entrytype, UInt32 id);
 			TypeIDTreeNode Find(TypeIDTreeNode.EntryType entrytype, ToxKey key);
 
 			// enumerator for all groups
-			bool GroupEnumerator(out Dictionary<UInt16, TypeIDTreeNode> groups);
+			bool GroupEnumerator(out Dictionary<UInt32, TypeIDTreeNode> groups);
 
 			// returns number of matches
 			int FindFriendsWithKeyStartingWithID(string idpartial, out FriendTreeNode friend);

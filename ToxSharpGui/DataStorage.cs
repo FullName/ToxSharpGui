@@ -6,12 +6,20 @@ namespace ToxSharpBasic
 {
 	public class TypeIDTreeNode
 	{
-		public enum EntryType { Header, Friend, Stranger, Group, Invitation, Rendezvous };
+		public enum EntryType { Header, Friend, Stranger, Group, Invitation, Rendezvous, GroupMember };
 
 		public EntryType entryType;
-		public UInt16 id;
+		public UInt32 id;
 
-		public TypeIDTreeNode(EntryType entryType, UInt16 id)
+		public UInt16 ids()
+		{
+			if (id < UInt16.MaxValue)
+				return (UInt16)id;
+
+			throw new ArgumentOutOfRangeException();
+		}
+
+		public TypeIDTreeNode(EntryType entryType, UInt32 id)
 		{
 			this.entryType = entryType;
 			this.id = id;
@@ -177,6 +185,11 @@ namespace ToxSharpBasic
 
 			return res;
 		}
+
+		public UInt32 MemberID(UInt16 subid)
+		{
+			return id << 16 + subid;
+		}
 	}
 
 	public class InvitationTreeNode : KeyTreeNode
@@ -228,10 +241,30 @@ namespace ToxSharpBasic
 		{
 			return "[" + time.ToShortTimeString() + "] " + text.Substring(0, 16) + "...";
 		}
+
 		public override string TooltipText()
 		{
 			return "[" + time.ToShortDateString() + " " + time.ToShortTimeString() + "]\n"
 					+ text.Substring(0, 16) + "...";
+		}
+	}
+
+	public class GroupMemberTreeNode : TypeIDTreeNode
+	{
+		public GroupTreeNode group;
+		public UInt16 subid;
+		public string name;
+
+		public GroupMemberTreeNode(GroupTreeNode group, UInt16 id, string name) : base(EntryType.GroupMember, group.MemberID(id))
+		{
+			this.group = group;
+			this.subid = id;
+			this.name = name;
+		}
+
+		public override string Text()
+		{
+			return "[" + id + "] " + name;
 		}
 	}
 
@@ -251,13 +284,13 @@ namespace ToxSharpBasic
 			}
 		}
 	
-		protected class DataStorageSubKeyUInt16 : DataStorageSub
+		protected class DataStorageSubKeyUInt32 : DataStorageSub
 		{
-			public Dictionary<UInt16, TypeIDTreeNode> element;
+			public Dictionary<UInt32, TypeIDTreeNode> element;
 	
-			public DataStorageSubKeyUInt16()
+			public DataStorageSubKeyUInt32()
 			{
-				element = new Dictionary<ushort, TypeIDTreeNode>();
+				element = new Dictionary<UInt32, TypeIDTreeNode>();
 			}
 		}
 
@@ -269,11 +302,13 @@ namespace ToxSharpBasic
 		{
 			data = new Dictionary<TypeIDTreeNode.EntryType, DataStorageSub>();
 
-			data.Add(TypeIDTreeNode.EntryType.Friend, new DataStorageSubKeyUInt16());
+			data.Add(TypeIDTreeNode.EntryType.Friend, new DataStorageSubKeyUInt32());
 			data.Add(TypeIDTreeNode.EntryType.Stranger, new DataStorageSubKeyKey());
-			data.Add(TypeIDTreeNode.EntryType.Group, new DataStorageSubKeyUInt16());
+			data.Add(TypeIDTreeNode.EntryType.Rendezvous, new DataStorageSubKeyUInt32());
+
+			data.Add(TypeIDTreeNode.EntryType.Group, new DataStorageSubKeyUInt32());
 			data.Add(TypeIDTreeNode.EntryType.Invitation, new DataStorageSubKeyKey());
-			data.Add(TypeIDTreeNode.EntryType.Rendezvous, new DataStorageSubKeyUInt16());
+			data.Add(TypeIDTreeNode.EntryType.GroupMember, new DataStorageSubKeyUInt32());
 		}
 
 		public void Add(TypeIDTreeNode typeid)
@@ -287,7 +322,8 @@ namespace ToxSharpBasic
 				case TypeIDTreeNode.EntryType.Friend:
 				case TypeIDTreeNode.EntryType.Group:
 				case TypeIDTreeNode.EntryType.Rendezvous:
-					DataStorageSubKeyUInt16 subint = sub as DataStorageSubKeyUInt16;
+				case TypeIDTreeNode.EntryType.GroupMember:
+					DataStorageSubKeyUInt32 subint = sub as DataStorageSubKeyUInt32;
 					if (subint != null)
 						subint.element.Add(typeid.id, typeid);
 					break;
@@ -312,7 +348,8 @@ namespace ToxSharpBasic
 			{
 				case TypeIDTreeNode.EntryType.Friend:
 				case TypeIDTreeNode.EntryType.Group:
-					DataStorageSubKeyUInt16 subint = sub as DataStorageSubKeyUInt16;
+				case TypeIDTreeNode.EntryType.GroupMember:
+					DataStorageSubKeyUInt32 subint = sub as DataStorageSubKeyUInt32;
 					if (subint != null)
 						subint.element.Remove(typeid.id);
 					break;
@@ -327,13 +364,13 @@ namespace ToxSharpBasic
 			}
 		}
 
-		public TypeIDTreeNode Find(TypeIDTreeNode.EntryType entrytype, UInt16 id)
+		public TypeIDTreeNode Find(TypeIDTreeNode.EntryType entrytype, UInt32 id)
 		{
 			DataStorageSub sub;
 			if (!data.TryGetValue(entrytype, out sub))
 				return null;
 
-			DataStorageSubKeyUInt16 subactual = sub as DataStorageSubKeyUInt16;
+			DataStorageSubKeyUInt32 subactual = sub as DataStorageSubKeyUInt32;
 			if (subactual == null)
 				return null;
 			
@@ -375,7 +412,7 @@ namespace ToxSharpBasic
 			if (!data.TryGetValue(TypeIDTreeNode.EntryType.Friend, out sub))
 				return -1;
 
-			DataStorageSubKeyUInt16 subactual = sub as DataStorageSubKeyUInt16;
+			DataStorageSubKeyUInt32 subactual = sub as DataStorageSubKeyUInt32;
 			if (subactual == null)
 				return -1;
 
@@ -404,7 +441,7 @@ namespace ToxSharpBasic
 			if (!data.TryGetValue(TypeIDTreeNode.EntryType.Friend, out sub))
 				return -1;
 
-			DataStorageSubKeyUInt16 subactual = sub as DataStorageSubKeyUInt16;
+			DataStorageSubKeyUInt32 subactual = sub as DataStorageSubKeyUInt32;
 			if (subactual == null)
 				return -1;
 
@@ -432,7 +469,7 @@ namespace ToxSharpBasic
 			if (!data.TryGetValue(TypeIDTreeNode.EntryType.Rendezvous, out sub))
 				return null;
 
-			DataStorageSubKeyUInt16 subactual = sub as DataStorageSubKeyUInt16;
+			DataStorageSubKeyUInt32 subactual = sub as DataStorageSubKeyUInt32;
 			if (subactual == null)
 				return null;
 
@@ -455,7 +492,7 @@ namespace ToxSharpBasic
 			if (!data.TryGetValue(TypeIDTreeNode.EntryType.Friend, out sub))
 				return;
 
-			DataStorageSubKeyUInt16 subactual = sub as DataStorageSubKeyUInt16;
+			DataStorageSubKeyUInt32 subactual = sub as DataStorageSubKeyUInt32;
 			if (subactual == null)
 				return;
 
@@ -471,7 +508,7 @@ namespace ToxSharpBasic
 			}
 		}
 
-		public bool GroupEnumerator(out Dictionary<UInt16, TypeIDTreeNode> groups)
+		public bool GroupEnumerator(out Dictionary<UInt32, TypeIDTreeNode> groups)
 		{
 			groups = null;
 
@@ -479,7 +516,7 @@ namespace ToxSharpBasic
 			if (!data.TryGetValue(TypeIDTreeNode.EntryType.Group, out sub))
 				return false;
 
-			DataStorageSubKeyUInt16 subactual = sub as DataStorageSubKeyUInt16;
+			DataStorageSubKeyUInt32 subactual = sub as DataStorageSubKeyUInt32;
 			if (subactual == null)
 				return false;
 

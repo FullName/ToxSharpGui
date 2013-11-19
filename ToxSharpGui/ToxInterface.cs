@@ -752,7 +752,7 @@ namespace ToxSharpBasic
 		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
 		private static extern int tox_group_peername(Sys.IntPtr tox, int groupnumber, int peernumber, byte[] name);
 
-		public bool ToxGroupchatPeername(int groupnumber, int peernumber, out string namestr)
+		public bool ToxGroupchatPeername(Sys.UInt16 groupnumber, Sys.UInt16 peernumber, out string namestr)
 		{
 			byte[] namebin = new byte[NAME_LEN + 1];
 

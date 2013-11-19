@@ -315,10 +315,57 @@ namespace ToxSharpGTK
 			}
 		}
 
+		public void TreeAddSub(TypeIDTreeNode typeid, TypeIDTreeNode parenttypeid)
+		{
+			if ((parenttypeid == null) || (typeid == null))
+				return;
+
+			TreeIter iter;
+			if (!storeiterators.GetByTypeRaw(parenttypeid.entryType, out iter))
+				return;
+
+			TreeIter itersub;
+			HolderTreeNode parent = null;
+			for(int i = store.IterNChildren(iter); i > 0; i--)
+				if (store.IterNthChild(out itersub, iter, i - 1))
+				{
+					parent = store.GetValue(itersub, 0) as HolderTreeNode;
+					if ((parent.typeid.entryType == parenttypeid.entryType) &&
+						(parent.typeid.id == parenttypeid.id))
+						break;
+
+					parent = null;
+				}
+
+			if (parent == null)
+				return;
+
+			TreeIter itersubsub;
+			HolderTreeNode holder;
+			for(int i = store.IterNChildren(itersub); i > 0; i--)
+				if (store.IterNthChild(out itersubsub, itersub, i - 1))
+				{
+					holder = store.GetValue(itersubsub, 0) as HolderTreeNode;
+				    if ((holder.typeid.entryType == typeid.entryType) &&
+				        (holder.typeid.id == typeid.id))
+					    return;
+				}
+
+			holder = new HolderTreeNode(typeid);
+
+			store.AppendValues(itersub, holder);
+			treeview1.ExpandAll();
+			treeview1.QueueDraw();
+		}
+			
 		public void TreeDel(TypeIDTreeNode typeid)
 		{
 			storeiterators.Delete(typeid);
 			treeview1.QueueDraw();
+		}
+
+		public void TreeDelSub(TypeIDTreeNode typeid, TypeIDTreeNode parenttypeid)
+		{
 		}
 
 		public void TreeUpdate(TypeIDTreeNode typeid)
@@ -327,9 +374,8 @@ namespace ToxSharpGTK
 			treeview1.QueueDraw();
 		}
 
-		public void TreeUpdate()
+		public void TreeUpdateSub(TypeIDTreeNode typeid, TypeIDTreeNode parenttypeid)
 		{
-			treeview1.QueueDraw();
 		}
 
 	/*
@@ -361,7 +407,7 @@ namespace ToxSharpGTK
 			nodeview.AppendColumn("Text", renderer, "text", 1);
 			
 			// source, message, source-type, source-id, timestamp
-			ListStoreSourceTypeID liststorenew = new ListStoreSourceTypeID(type, typeid.id, typeof(string), typeof(string), typeof(byte), typeof(UInt16), typeof(Int64));
+			ListStoreSourceTypeID liststorenew = new ListStoreSourceTypeID(type, typeid.ids(), typeof(string), typeof(string), typeof(byte), typeof(UInt16), typeof(Int64));
 			nodeview.Model = liststorenew;
 
 			liststorepartial.Add(liststorenew);

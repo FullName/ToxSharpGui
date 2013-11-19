@@ -204,12 +204,9 @@ namespace ToxSharpBasic
 
 		public void ToxGroupchatInit(UInt16 groupchatnum)
 		{
-			for(UInt16 i = 0; i < groupchatnum; i++)
-			{
-				GroupTreeNode group = new GroupTreeNode(i, null, null);
-				datareactions.Add(group);
-				uireactions.TreeAdd(group);
-			}
+			GroupTreeNode group = new GroupTreeNode(groupchatnum, null, null);
+			datareactions.Add(group);
+			uireactions.TreeAdd(group);
 		}
 
 		public void ToxGroupchatInvite(int friendnumber, string friendname, ToxKey friend_groupkey)
@@ -223,8 +220,32 @@ namespace ToxSharpBasic
 
 		public void ToxGroupchatMessage(int groupnumber, int friendgroupnumber, string message)
 		{
-			uireactions.TextAdd(Interfaces.SourceType.Group, (UInt16)groupnumber, "#" + groupnumber + " - " + friendgroupnumber, message);
+			string name = "" + friendgroupnumber;
+			GroupTreeNode group = datareactions.Find(TypeIDTreeNode.EntryType.Group, (UInt32)groupnumber) as GroupTreeNode;
+			if (group != null)
+			{
+				GroupMemberTreeNode member = datareactions.Find(TypeIDTreeNode.EntryType.GroupMember, group.MemberID((UInt16)friendgroupnumber)) as GroupMemberTreeNode;
+				if (member != null)
+				{
+					name = member.name;
+					if (name.Length == 0)
+					{
+						toxsharp.ToxGroupchatPeername((UInt16)groupnumber, (UInt16)friendgroupnumber, out name);
+						if (name.Length > 0)
+						{
+							member.name = name;
+							uireactions.TreeUpdateSub(member, group);
+						}
+					}
+				}
+			}
+
+			uireactions.TextAdd(Interfaces.SourceType.Group, (UInt16)groupnumber, "#" + groupnumber + " - <" + name + ">", message);
 		}
+
+	/****************************************************************************************/
+	/****************************************************************************************/
+	/****************************************************************************************/
 
 		public void ToxRendezvousFound(ushort ID, ToxKey friendaddress)
 		{

@@ -117,7 +117,7 @@ namespace ToxSharpBasic
 					rendezvous.time = time;
 				}
 
-				int res = toxsharp.ToxPublish(rendezvous.id, input2, time);
+				int res = toxsharp.ToxPublish(rendezvous.ids(), input2, time);
 				if (res > 0)
 				{
 					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Set up successfully.\n");
@@ -289,6 +289,22 @@ namespace ToxSharpBasic
 					GroupTreeNode group = new GroupTreeNode((UInt16)groupnumber, groupkey, null);
 					datareactions.Add(group);
 					uireactions.TreeAdd(group);
+
+					UInt16 i = 0;
+					string membername;
+					while(toxsharp.ToxGroupchatPeername(group.ids(), i, out membername))
+					{
+						GroupMemberTreeNode member = datareactions.Find(TypeIDTreeNode.EntryType.GroupMember, group.MemberID(i)) as GroupMemberTreeNode;
+						if (member == null)
+						{
+							member = new GroupMemberTreeNode(group, i, membername);
+							uireactions.TreeAddSub(member, group);
+							datareactions.Add(member);
+						}
+
+						member.name = membername;
+						i++;
+					}
 				}
 			}
 			else if (action.Substring(0, 8) == "decline:")
@@ -342,9 +358,9 @@ namespace ToxSharpBasic
 							return;
 
 						uint groupcnt = 0;
-						Dictionary<UInt16, TypeIDTreeNode> groups;
+						Dictionary<UInt32, TypeIDTreeNode> groups;
 						if (datareactions.GroupEnumerator(out groups) && (groups.Count > 0))
-							foreach(KeyValuePair<UInt16, TypeIDTreeNode> pair in groups)
+							foreach(KeyValuePair<UInt32, TypeIDTreeNode> pair in groups)
 							{
 								GroupTreeNode group = pair.Value as GroupTreeNode;
 								if (group != null)
@@ -382,7 +398,7 @@ namespace ToxSharpBasic
 						if (groupcnt > 0)
 						{
 							uint groupcurr = 0;
-							foreach(KeyValuePair<UInt16, TypeIDTreeNode> pair in groups)
+							foreach(KeyValuePair<UInt32, TypeIDTreeNode> pair in groups)
 							{
 								GroupTreeNode group = pair.Value as GroupTreeNode;
 								if (group != null)

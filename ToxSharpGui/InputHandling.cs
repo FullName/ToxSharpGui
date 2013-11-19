@@ -18,7 +18,7 @@ namespace ToxSharpBasic
 			this.datareactions = datareactions;
 		}
 
-		protected void TextAdd(Interfaces.SourceType type, UInt16 id, string source, string text)
+		protected void TextAdd(Interfaces.SourceType type, UInt32 id, string source, string text)
 		{
 			uireactions.TextAdd(type, id, source, text);
 		}
@@ -129,14 +129,14 @@ namespace ToxSharpBasic
 			if ((len > 2) && (text.Substring(0, 3) == "/fd"))
 			{
 				TextAdd(Interfaces.SourceType.Friend, friend.id, "ACTION", toxsharp.ToxNameGet() + " " + actionstr);
-				toxsharp.ToxFriendAction(friend.id, actionstr);
+				toxsharp.ToxFriendAction(friend.ids(), actionstr);
 	
 				return 1;
 			}
 	
 			if ((len > 2) && (text.Substring(0, 3) == "/fm"))
 			{
-				if (toxsharp.ToxFriendMessage(friend.id, actionstr) != 0)
+				if (toxsharp.ToxFriendMessage(friend.ids(), actionstr) != 0)
 				{
 					TextAdd(Interfaces.SourceType.Friend, friend.id, toxsharp.ToxNameGet(), actionstr);
 					return 1;
@@ -201,7 +201,7 @@ namespace ToxSharpBasic
 					datareactions.Add(rendezvous);
 				}
 
-				int res = toxsharp.ToxPublish(rendezvous.id, text, DateTime.Now);
+				int res = toxsharp.ToxPublish(rendezvous.ids(), text, DateTime.Now);
 				if (res > 0)
 				{
 					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Set up successfully.\n");
@@ -329,11 +329,14 @@ namespace ToxSharpBasic
 			{
 				// send to target
 				Interfaces.SourceType type;
-				UInt16 id;
-				if (!uireactions.CurrentTypeID(out type, out id))
+				UInt32 id32;
+				if (!uireactions.CurrentTypeID(out type, out id32))
 					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "No target for a message on this page. Try '/h' for help.");
+				else if (id32 > UInt16.MaxValue)
+					TextAdd(Interfaces.SourceType.System, 0, "DEBUG", "Oops. How did you get here?");
 				else
 				{
+					UInt16 id = (UInt16)id32;
 					if (type == Interfaces.SourceType.Friend)
 					{
 						if (action)

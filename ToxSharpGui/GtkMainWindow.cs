@@ -207,8 +207,12 @@ namespace ToxSharpGTK
 	 *
 	 */
 
-		public void TextAdd(Interfaces.SourceType type, UInt16 id, string source, string text)
+		public void TextAdd(Interfaces.SourceType type, UInt32 id32, string source, string text)
 		{
+			if (id32 > UInt16.MaxValue)
+				throw new ArgumentOutOfRangeException();
+
+			UInt16 id = (UInt16)id32;
 			long ticks = DateTime.Now.Ticks;
 			liststoreall.AppendValues(source, text, (byte)type, id, ticks);
 
@@ -227,7 +231,7 @@ namespace ToxSharpGTK
 	 *
 	 */
 
-		public bool CurrentTypeID(out Interfaces.SourceType type, out UInt16 id)
+		public bool CurrentTypeID(out Interfaces.SourceType type, out UInt32 id)
 		{
 			// send to target
 			ScrolledWindow scrollwindow = notebook1.CurrentPageWidget as ScrolledWindow;

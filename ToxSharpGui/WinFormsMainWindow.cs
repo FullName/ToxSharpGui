@@ -23,6 +23,16 @@ namespace ToxSharpWinForms
 			Text = "Tox# - " + name + " [" + selfid + "]";
 		}
 
+		public void TreeAddSub(TypeIDTreeNode typeid, TypeIDTreeNode parenttypeid)
+		{
+		}
+		public void TreeDelSub(TypeIDTreeNode typeid, TypeIDTreeNode parenttypeid)
+		{
+		}
+		public void TreeUpdateSub(TypeIDTreeNode typeid, TypeIDTreeNode parenttypeid)
+		{
+		}
+
 		public void TreeAdd(TypeIDTreeNode typeid)
 		{
 			HolderTreeNode parent = TreeParent(typeid);
@@ -85,15 +95,21 @@ namespace ToxSharpWinForms
 		}
 
 		// right side: multi-tab
-		public bool CurrentTypeID(out Interfaces.SourceType type, out System.UInt16 id)
+		public bool CurrentTypeID(out Interfaces.SourceType type, out System.UInt32 id)
 		{
+			// TODO
 			type = Interfaces.SourceType.Debug;
 			id = 0;
 			return false;
 		}
 
-		public void TextAdd(Interfaces.SourceType type, UInt16 id, string source, string text)
+		public void TextAdd(Interfaces.SourceType type, UInt32 id32, string source, string text)
 		{
+			if (id32 > UInt16.MaxValue)
+				throw new ArgumentOutOfRangeException();
+
+			UInt16 id = (UInt16)id32;
+
 			// TODO: multiple rows if source or text contain newlines
 			// TODO: split across multiple rows, mark as continuation, in resize recalc
 
@@ -378,14 +394,14 @@ namespace ToxSharpWinForms
 					{
 						TabbedPage page = wfpage as TabbedPage;
 						if (page != null)
-							if (page.Is(type, typeid.id))
+							if (page.Is(type, typeid.ids()))
 							{
 								pages.SelectedTab = page;
 								return;
 							}
 					}
 
-					id = typeid.id;
+					id = typeid.ids();
 				}
 
 				TabbedPage tabbedpage = new TabbedPage(pages, input, type, id, title);
