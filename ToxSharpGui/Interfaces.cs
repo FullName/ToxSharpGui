@@ -90,6 +90,15 @@ namespace ToxSharpBasic
 			public EventHandler handle;
 		}
 
+		public interface IUIFactory
+		{
+			// GTK barfs if Application is setup/torn down from inside a GTK object
+			IUIReactions Create();
+
+			// close down application
+			void Quit();
+		}
+
 		// independence of GUI toolkit: required reactions
 		public interface IUIReactions
 		{
@@ -129,7 +138,7 @@ namespace ToxSharpBasic
 			// used to ask user for two strings: the ID and a message for a friend-invite
 			bool AskIDMessage(string message, string name1, string name2, out string input1, out string input2);
 
-			// close down application
+			// request to close down application
 			void Quit();
 		}
 
