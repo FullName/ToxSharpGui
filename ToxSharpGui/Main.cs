@@ -3,13 +3,7 @@ using System;
 
 namespace ToxSharpBasic
 {
-	interface IMainWindow
-	{
-		void Init(ToxInterface toxsharp, Interfaces.IDataReactions datareactions, InputHandling inputhandling, Popups popups);
-		void Do();
-	}
-
-	class MainClass
+	internal class MainClass
 	{
 		public static void Main(string[] args)
 		{
@@ -26,23 +20,31 @@ namespace ToxSharpBasic
 				}
 
 			uiname = uiname.ToLower();
-			if (uiname == "gtk")
+
+			try
 			{
-				ToxSharpGTK.GtkMainWindow.Prepare();
-				uiobject = new ToxSharpGTK.GtkMainWindow();
+				if (uiname == "gtk")
+				{
+					ToxSharpGTK.GtkMainWindow.Prepare();
+					uiobject = new ToxSharpGTK.GtkMainWindow();
+				}
+				if (uiname == "winforms")
+					uiobject = new ToxSharpWinForms.WinFormsMainWindow();
 			}
-			if (uiname == "winforms")
-				uiobject = new ToxSharpWinForms.WinFormsMainWindow();
+			catch(Exception e)
+			{
+				System.Console.WriteLine("Failed to initialize UI " + uiname + ":" + e.Message + " => " + e.InnerException + ". Exiting...");
+				return;
+			}
 
 			if (uiobject == null)
 			{
-				System.Console.WriteLine("Failed to initialize UI " + uiname + ". Exiting...");
+				System.Console.WriteLine("Failed to find corresponding UI " + uiname + ". Exiting...");
 				return;
 			}
 
 			Interfaces.IUIReactions uireactions = uiobject as Interfaces.IUIReactions;
-			IMainWindow uiwindow = uiobject as IMainWindow;
-			if ((uireactions == null) || (uiwindow == null))
+			if (uireactions == null)
 				return;
 
 			foreach(string name in System.IO.Directory.EnumerateFiles(".", "*.log"))
@@ -52,10 +54,7 @@ namespace ToxSharpBasic
 			ToxInterface toxsharp = new ToxInterface(args);
 			ToxGlue glue = new ToxGlue();
 
-			InputHandling inputhandling = new InputHandling(toxsharp, uireactions, datastorage);
-			Popups popups = new Popups(toxsharp, uireactions, datastorage);
-
-			uiwindow.Init(toxsharp, datastorage, inputhandling, popups);
+			uireactions.Init(glue);
 			glue.Init(toxsharp, uireactions, datastorage);
 			toxsharp.ToxInit(glue, glue, glue, glue);
 
@@ -63,10 +62,12 @@ namespace ToxSharpBasic
 			if (bootstrapped_cnt <= 0)
 				return;
 
-			uireactions.TitleUpdate();
+			string selfname = toxsharp.ToxNameGet();
+			if (selfname.Length > 0)
+				uireactions.TitleUpdate(selfname, toxsharp.ToxSelfID());
 			uireactions.TextAdd(Interfaces.SourceType.System , 0, "SYSTEM", "Sent connection requests to " + bootstrapped_cnt + " other clients...");
 
-			uiwindow.Do();
+			uireactions.Run();
 		}
 	}
 }

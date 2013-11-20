@@ -8,12 +8,12 @@ using SysEnv = Sys.Environment;
 
 namespace ToxSharpBasic
 {
-	public interface IToxSharpBasic
+	internal interface IToxSharpBasic
 	{
 		void ToxConnected(bool state);
 	}
 
-	public interface IToxSharpFriend
+	internal interface IToxSharpFriend
 	{
 		void ToxFriendAddRequest(ToxKey key, string message);
 
@@ -27,22 +27,22 @@ namespace ToxSharpBasic
 		void ToxFriendAction(int friendId, string action);
 	}
 
-	public interface IToxSharpGroup
+	internal interface IToxSharpGroup
 	{
 		void ToxGroupchatInit(Sys.UInt16 groupchatnum);
 		void ToxGroupchatInvite(int friendnumber, string friendname, ToxKey friend_groupkey);
 		void ToxGroupchatMessage(int groupnumber, int friendgroupnumber, string message);
 	}
 
-	public interface IToxSharpRendezvous
+	internal interface IToxSharpRendezvous
 	{
 		void ToxRendezvousFound(ushort ID, ToxKey key);
 		byte ToxRendezvousTimeout(ushort ID);
 	}
 
-	public enum FriendPresenceState { Unknown, Away, Busy, Invalid };
+	internal enum FriendPresenceState { Unknown, Away, Busy, Invalid };
 
-	public class ToxKey : Sys.IComparable, Sys.IEquatable<ToxKey>
+	internal class ToxKey : Sys.IComparable, Sys.IEquatable<ToxKey>
 	{
 		protected string _str;
 		protected byte[] _bin;
@@ -106,7 +106,7 @@ namespace ToxSharpBasic
 		}
 	}
 
-	public class ToxInterface
+	internal class ToxInterface
 	{
 		public const int ID_LEN_BINARY = 38;
 		public const int NAME_LEN = 128;

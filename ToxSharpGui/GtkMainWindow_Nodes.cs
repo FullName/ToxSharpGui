@@ -417,9 +417,21 @@ namespace ToxSharpGTK
 
 			string label = "???";
 			if (typeid.entryType == TypeIDTreeNode.EntryType.Friend)
-				label = (typeid as FriendTreeNode).name;
+			{
+				FriendTreeNode friend = typeid as FriendTreeNode;
+				if (friend.name.Length > 0)
+					label = "{" + friend.name + "}";
+				else
+					label = ":[" + friend.id + "]:";
+			}
 			else if (typeid.entryType == TypeIDTreeNode.EntryType.Group)
-				label = "#" + (typeid as GroupTreeNode).name;
+			{
+				GroupTreeNode group = typeid as GroupTreeNode;
+				if (group.name.Length > 0)
+					label = "#" + group.name;
+				else
+					label = ":#" + group.id + ":";
+			}
 
 			notebook1.AppendPage(scrolledwindow, new Gtk.Label(label));
 			notebook1.ShowAll(); // required to make nodeview, label and notebook display
@@ -456,25 +468,25 @@ namespace ToxSharpGTK
 			pos.X = (int)args.Event.X;
 			pos.Y = (int)args.Event.Y;
 
-			Popups.Button button = Popups.Button.None;
+			Interfaces.Button button = Interfaces.Button.None;
 			switch(args.Event.Button)
 			{
-				case 1: button = Popups.Button.Left;
+				case 1: button = Interfaces.Button.Left;
 						break;
-				case 2: button = Popups.Button.Middle;
+				case 2: button = Interfaces.Button.Middle;
 						break;
-				case 3: button = Popups.Button.Right;
+				case 3: button = Interfaces.Button.Right;
 						break;
 			}
 
-			Popups.Click click = Popups.Click.None;
+			Interfaces.Click click = Interfaces.Click.None;
 			switch (args.Event.Type)
 			{
 				case Gdk.EventType.ButtonRelease:
-					click = Popups.Click.Single;
+					click = Interfaces.Click.Single;
 					break;
 				case Gdk.EventType.TwoButtonPress:
-					click = Popups.Click.Double;
+					click = Interfaces.Click.Double;
 					break;
 			}
 
@@ -503,10 +515,10 @@ namespace ToxSharpGTK
 					return;
 				}
 
-				popups.TreePopup(o, pos, typeid, button, click);
+				uiactions.TreePopup(o, pos, typeid, button, click);
 			}
 			else
-				popups.TreePopup(o, pos, null, button, click);
+				uiactions.TreePopup(o, pos, null, button, click);
 		}
 
 		protected void OnTreeview1KeyReleaseEvent (object o, Gtk.KeyReleaseEventArgs args)

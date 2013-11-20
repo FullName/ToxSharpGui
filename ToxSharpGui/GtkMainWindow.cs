@@ -30,8 +30,7 @@ namespace ToxSharpGTK
 		}
 	}
 
-	public partial class GtkMainWindow : Gtk.Window, IMainWindow,
-										Interfaces.IUIReactions
+	public partial class GtkMainWindow : Gtk.Window, Interfaces.IUIReactions
 	{
 		protected class Size
 		{
@@ -41,11 +40,7 @@ namespace ToxSharpGTK
 
 		protected Size size;
 
-		protected ToxInterface toxsharp;
-		protected InputHandling inputhandling;
-		protected Popups popups;
-
-		protected Interfaces.IDataReactions datareactions;
+		protected Interfaces.IUIActions uiactions;
 
 		static public void Prepare()
 		{
@@ -56,12 +51,9 @@ namespace ToxSharpGTK
 		{
 		}
 
-		public void Init(ToxInterface toxsharp, Interfaces.IDataReactions datareactions, InputHandling inputhandling, Popups popups)
+		public void Init(Interfaces.IUIActions uiactions)
 		{
-			this.toxsharp = toxsharp;
-			this.datareactions = datareactions;
-			this.inputhandling = inputhandling;
-			this.popups = popups;
+			this.uiactions = uiactions;
 
 			Build();
 
@@ -78,7 +70,7 @@ namespace ToxSharpGTK
 			Focus = entry1;
 		}
 
-		public void Do()
+		public void Run()
 		{
 			Show();
 			Application.Run();
@@ -86,11 +78,10 @@ namespace ToxSharpGTK
 
 	/*****************************************************************************/
 
-		public void TitleUpdate()
+		public void TitleUpdate(string name, string ID)
 		{
-			string name = toxsharp.ToxNameGet();
-			string selfid = toxsharp.ToxSelfID();
-			Title = "Tox# - " + name + " [" + selfid + "]";
+			if ((name != null) && (ID != null))
+				Title = "Tox# - " + name + " [" + ID + "]";
 		}
 
 		public void ConnectState(bool state, string text)
@@ -251,16 +242,16 @@ namespace ToxSharpGTK
 
 		protected void OnEntryKeyReleased(object o, Gtk.KeyReleaseEventArgs args)
 		{
-			InputKey key = InputKey.None;
+			Interfaces.InputKey key = Interfaces.InputKey.None;
 			switch(args.Event.Key) {
-				case Gdk.Key.Up: key = InputKey.Up; break;
-				case Gdk.Key.Down: key = InputKey.Down; break;
-				case Gdk.Key.Tab: key = InputKey.Tab; break;
-				case Gdk.Key.Return: key = InputKey.Return; break;
+				case Gdk.Key.Up: key = Interfaces.InputKey.Up; break;
+				case Gdk.Key.Down: key = Interfaces.InputKey.Down; break;
+				case Gdk.Key.Tab: key = Interfaces.InputKey.Tab; break;
+				case Gdk.Key.Return: key = Interfaces.InputKey.Return; break;
 				default: return;
 			}
 
-			if (inputhandling.Do(entry1.Text, key))
+			if (uiactions.InputLine(entry1.Text, key))
 				entry1.Text = "";
 		}
 
@@ -268,7 +259,7 @@ namespace ToxSharpGTK
 
 		public void Quit()
 		{
-			toxsharp.ToxStopAndSave();
+			uiactions.QuitPrepare();
 			Application.Quit();
 		}
 

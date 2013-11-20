@@ -5,6 +5,78 @@ using System.Collections.Generic;
 
 namespace ToxSharpBasic
 {
+	public class TypeIDTreeNode
+	{
+		public enum EntryType { Header, Friend, Stranger, Group, Invitation, Rendezvous, GroupMember };
+
+		public EntryType entryType;
+		public UInt32 id; // on all but GroupMember: id, else: { group.id | id }
+
+		public UInt16 ids()
+		{
+			if (id < UInt16.MaxValue)
+				return (UInt16)id;
+
+			throw new ArgumentOutOfRangeException();
+		}
+
+		public TypeIDTreeNode(EntryType entryType, UInt32 id)
+		{
+			this.entryType = entryType;
+			this.id = id;
+		}
+
+		public virtual UInt16 Check()
+		{
+			return 0;
+		}
+
+		public virtual string Text()
+		{
+			return null;
+		}
+
+		public virtual string TooltipText()
+		{
+			return null;
+		}
+	}
+
+	public class HeaderTreeNode : TypeIDTreeNode
+	{
+		public string title;
+		
+		public HeaderTreeNode(EntryType type) : base(EntryType.Header, (UInt16)type)
+		{
+			switch(type)
+			{
+				case EntryType.Friend:
+					title = "Friends";
+					break;
+				case EntryType.Stranger:
+					title = "Strangers";
+					break;
+				case EntryType.Group:
+					title = "Groups";
+					break;
+				case EntryType.Invitation:
+					title = "Invites";
+					break;
+				case EntryType.Rendezvous:
+					title = "Rendezvous";
+					break;
+				default:
+					title = "???";
+					break;
+			}
+		}
+
+		public override string Text()
+		{
+			return title;
+		}
+	}
+
 	public class Interfaces
 	{
 		public enum SourceType { Friend, Group, System, Debug };
@@ -21,8 +93,14 @@ namespace ToxSharpBasic
 		// independence of GUI toolkit: required reactions
 		public interface IUIReactions
 		{
-			// main window: title
-			void TitleUpdate();
+			// init main window
+			void Init(Interfaces.IUIActions uiactions);
+
+			// run application (main loop, when this comes back, program terminates)
+			void Run();
+
+			// main window: title parts
+			void TitleUpdate(string name, string ID);
 
 			// left side: connect "button"
 			void ConnectState(bool connected, string text);
@@ -55,7 +133,30 @@ namespace ToxSharpBasic
 			void Quit();
 		}
 
-		public interface IDataReactions
+		public enum Button { None, Left, Middle, Right };
+		public enum Click { None, Single, Double };
+
+		public enum InputKey { None, Up, Down, Tab, Return };
+
+		public interface IUIActions
+		{
+			// click on tree item, parent object is potentially needed as popup menu parent
+			void TreePopup(object parent, Point position, TypeIDTreeNode typeid, Button button, Click click);
+
+			// if true, line was evaluated and shall be cleared
+			bool InputLine(string text, InputKey key);
+
+			// ui is almost done, stop threading and save state
+			void QuitPrepare();
+		}
+
+		public interface IActions
+		{
+			// InputHandling and Popup share a LOT of code
+			// consolidate (probably into ToxGlue?)
+		}
+
+		internal interface IDataReactions
 		{
 			void FriendCount(out int friendsonline, out int friendstotal);
 

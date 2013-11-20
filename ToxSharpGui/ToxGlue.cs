@@ -1,11 +1,46 @@
 
 using System;
+using System.Drawing;
 using System.Collections.Generic;
 
 namespace ToxSharpBasic
 {
-	public class ToxGlue : IToxSharpBasic, IToxSharpFriend, IToxSharpGroup, IToxSharpRendezvous
+	internal class ToxGlue : IToxSharpBasic, IToxSharpFriend, IToxSharpGroup, IToxSharpRendezvous,
+	                       Interfaces.IUIActions
 	{
+		protected Popups popups;
+
+		public void TreePopup(object parent, Point position, TypeIDTreeNode typeid, Interfaces.Button button, Interfaces.Click click)
+		{
+			if (popups == null)
+			{
+				popups = new Popups(toxsharp, uireactions, datareactions);
+				if (popups == null)
+				    return;
+			}
+
+			popups.TreePopup(parent, position, typeid, button, click);
+		}
+
+		protected InputHandling inputhandling;
+
+		public bool InputLine(string text, Interfaces.InputKey key)
+		{
+			if (inputhandling == null)
+			{
+				inputhandling = new InputHandling(toxsharp, uireactions, datareactions);
+				if (inputhandling == null)
+					return false;
+			}
+
+			return inputhandling.Do(text, key);
+		}
+
+		public void QuitPrepare()
+		{
+			toxsharp.ToxStopAndSave();
+		}
+
 		protected ToxInterface toxsharp = null;
 		protected Interfaces.IUIReactions uireactions = null;
 		protected Interfaces.IDataReactions datareactions = null;
@@ -116,7 +151,7 @@ namespace ToxSharpBasic
 			if (friend == null)
 				return;
 
-			friend.name = name;
+			friend.NameUpdate(name);
 			uireactions.TreeUpdate(typeid);
 		}
 
@@ -144,8 +179,8 @@ namespace ToxSharpBasic
 				FriendTreeNode friendexisting = typeid as FriendTreeNode;
 				if (friendexisting != null)
 				{
+					friendexisting.NameUpdate(name);
 					friendexisting.key = key;
-					friendexisting.name = name;
 					friendexisting.online = online;
 					friendexisting.presence = presence;
 					friendexisting.state = state;

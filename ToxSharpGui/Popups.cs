@@ -5,11 +5,8 @@ using System.Collections.Generic;
 
 namespace ToxSharpBasic
 {
-	public class Popups
+	internal class Popups
 	{
-		public enum Button { None, Left, Middle, Right };
-		public enum Click { None, Single, Double };
-
 		protected ToxInterface toxsharp;
 		protected Interfaces.IUIReactions uireactions;
 		protected Interfaces.IDataReactions datareactions;
@@ -144,7 +141,7 @@ namespace ToxSharpBasic
 			TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "Unhandled new something: " + action);
 		}
 
-		public void TreeViewPopupFriend(object o, System.EventArgs args)
+		protected void TreeViewPopupFriend(object o, System.EventArgs args)
 		{
 			string action = uireactions.PopupMenuAction(o, args);
 			if (action == null)
@@ -191,7 +188,7 @@ namespace ToxSharpBasic
 			}
 		}
 
-		public void TreeViewPopupStranger(object o, System.EventArgs args)
+		protected void TreeViewPopupStranger(object o, System.EventArgs args)
 		{
 			string action = uireactions.PopupMenuAction(o, args);
 			if (action == null)
@@ -221,7 +218,7 @@ namespace ToxSharpBasic
 			}
 		}
 
-		public void TreeViewPopupGroup(object o, System.EventArgs args)
+		protected void TreeViewPopupGroup(object o, System.EventArgs args)
 		{
 			string action = uireactions.PopupMenuAction(o, args);
 			if (action == null)
@@ -331,13 +328,13 @@ namespace ToxSharpBasic
 			TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "publish action: " + action);
 		}
 
-		public void TreePopup(object parent, Point position, TypeIDTreeNode typeid, Button button, Click click)
+		public void TreePopup(object parent, Point position, TypeIDTreeNode typeid, Interfaces.Button button, Interfaces.Click click)
 		{
 			if (typeid != null)
 			{
 				// dbl-click/middle-click handled in caller
 
-				if (button == Button.Right)
+				if (button == Interfaces.Button.Right)
 				{
 					if (typeid.entryType == TypeIDTreeNode.EntryType.Header)
 						return;
@@ -405,7 +402,7 @@ namespace ToxSharpBasic
 								{
 									string text = "Group #" + group.id;
 									if (group.name != null)
-										text += " " + group.name;
+										text += ": " + group.name;
 									if (group.key != null)
 										text += " (" + group.key.str.Substring(0, 8) + "...)";
 									if (!submenu)
@@ -545,7 +542,7 @@ namespace ToxSharpBasic
 			else
 			{
 				// only popup here
-				if (button != Button.Right)
+				if (button != Interfaces.Button.Right)
 					return;
 
 				Interfaces.PopupEntry[] entries = new Interfaces.PopupEntry[3];

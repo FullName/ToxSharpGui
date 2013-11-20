@@ -7,7 +7,7 @@ using ToxSharpBasic;
 
 namespace ToxSharpWinForms
 {
-	public class WinFormsMainWindow : WinForms.Form, Interfaces.IUIReactions, IMainWindow
+	internal class WinFormsMainWindow : WinForms.Form, Interfaces.IUIReactions
 	{
 		// Interfaces.IUIReactions
 		public void ConnectState(bool state, string text)
@@ -16,11 +16,10 @@ namespace ToxSharpWinForms
 			connectstate.Text = text;
 		}
 
-		public void TitleUpdate()
+		public void TitleUpdate(string name, string ID)
 		{
-			string name = toxif.ToxNameGet();
-			string selfid = toxif.ToxSelfID();
-			Text = "Tox# - " + name + " [" + selfid + "]";
+			if ((name != null) && (ID != null))
+				Text = "Tox# - " + name + " [" + ID + "]";
 		}
 
 		public void TreeAddSub(TypeIDTreeNode typeid, TypeIDTreeNode parenttypeid)
@@ -227,9 +226,7 @@ namespace ToxSharpWinForms
 
 		public WinFormsMainWindow()
 		{
-			toxif = null;
-			inputhandling = null;
-			datareactions = null;
+			uiactions = null;
 
 			SetClientSizeCore(WidthMin + 15, HeightMin + 15);
 
@@ -306,27 +303,21 @@ namespace ToxSharpWinForms
 				TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "KEYUP: " + e.KeyValue);
 		}
 
-		protected ToxInterface toxif;
-		protected Interfaces.IDataReactions datareactions;
-		protected InputHandling inputhandling;
-		protected Popups popups;
+		protected Interfaces.IUIActions uiactions;
 
-		public void Init(ToxInterface toxif, Interfaces.IDataReactions datareactions, InputHandling inputhandling, Popups popups)
+		public void Init(Interfaces.IUIActions uiactions)
 		{
-			this.toxif = toxif;
-			this.datareactions = datareactions;
-			this.inputhandling = inputhandling;
-			this.popups = popups;
+			this.uiactions = uiactions;
 		}
 
-		public void Do()
+		public void Run()
 		{
 			WinForms.Application.Run(this);
 		}
 
 		void ClosedHandler(object sender, EventArgs e)
 		{
-			toxif.ToxStopAndSave();
+			uiactions.QuitPrepare();
 			WinForms.Application.Exit();
 		}
 
@@ -432,10 +423,10 @@ namespace ToxSharpWinForms
 		{
 			// non-node area handling must be done here
 			TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "MouseUp@" + e.X + ":" + e.Y);
-			TreeViewMouseClick(sender, e.Location, e.Button, Popups.Click.Single);
+			TreeViewMouseClick(sender, e.Location, e.Button, Interfaces.Click.Single);
 		}
 
-		void TreeViewMouseClick(object sender, Point location, WinForms.MouseButtons wfbutton, Popups.Click click)
+		void TreeViewMouseClick(object sender, Point location, WinForms.MouseButtons wfbutton, Interfaces.Click click)
 		{
 			string dbgmsg = "TVNMC: ";
 
@@ -451,19 +442,19 @@ namespace ToxSharpWinForms
 			else if (node != null)
 				return;
 
-			Popups.Button button = Popups.Button.None;
+			Interfaces.Button button = Interfaces.Button.None;
 			switch(wfbutton)
 			{
 				case WinForms.MouseButtons.Left:
-					button = Popups.Button.Left;
+					button = Interfaces.Button.Left;
 					dbgmsg += "L";
 					break;
 				case WinForms.MouseButtons.Middle:
-					button = Popups.Button.Middle;
+					button = Interfaces.Button.Middle;
 					dbgmsg += "M";
 					break;
 				case WinForms.MouseButtons.Right:
-					button = Popups.Button.Right;
+					button = Interfaces.Button.Right;
 					dbgmsg += "R";
 					break;
 			}
@@ -472,9 +463,9 @@ namespace ToxSharpWinForms
 			// TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", dbgmsg);
 
 			if (typeid == null)
-				popups.TreePopup(this, Location, typeid, button, click);
+				uiactions.TreePopup(this, Location, typeid, button, click);
 			else
-				popups.TreePopup(sender, Location, typeid, button, click);
+				uiactions.TreePopup(sender, Location, typeid, button, click);
 		}
 
 		void TreeViewMouseSingleClickHandler(object sender, WinForms.MouseEventArgs e)
@@ -500,21 +491,26 @@ namespace ToxSharpWinForms
 
 		void TextBoxKeyPressHandler(object sender, WinForms.KeyPressEventArgs e)
 		{
+			Interfaces.InputKey key = Interfaces.InputKey.None;
 			switch((WinForms.Keys)e.KeyChar)
 			{
 				case WinForms.Keys.Up:
-				    inputhandling.Do(input.Text, InputKey.Up);
+				    key = Interfaces.InputKey.Up;
 					break;
 				case WinForms.Keys.Down:
-					inputhandling.Do(input.Text, InputKey.Down);
+				    key = Interfaces.InputKey.Down;
 					break;
 				case WinForms.Keys.Tab:
-					inputhandling.Do(input.Text, InputKey.Tab);
+				    key = Interfaces.InputKey.Tab;
 					break;
 				case WinForms.Keys.Return:
-					inputhandling.Do(input.Text, InputKey.Return);
+				    key = Interfaces.InputKey.Return;
 					break;
+				default:
+					return;
 			}
+
+			uiactions.InputLine(input.Text, key);
 		}
 
 		protected HolderTreeNode[] headers;
@@ -556,7 +552,7 @@ namespace ToxSharpWinForms
 		}
 	}
 
-	public class HolderTreeNode : WinForms.TreeNode
+	internal class HolderTreeNode : WinForms.TreeNode
 	{
 		public TypeIDTreeNode typeid;
 

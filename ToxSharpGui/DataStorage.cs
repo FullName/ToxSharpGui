@@ -4,79 +4,7 @@ using System.Collections.Generic;
 
 namespace ToxSharpBasic
 {
-	public class TypeIDTreeNode
-	{
-		public enum EntryType { Header, Friend, Stranger, Group, Invitation, Rendezvous, GroupMember };
-
-		public EntryType entryType;
-		public UInt32 id;
-
-		public UInt16 ids()
-		{
-			if (id < UInt16.MaxValue)
-				return (UInt16)id;
-
-			throw new ArgumentOutOfRangeException();
-		}
-
-		public TypeIDTreeNode(EntryType entryType, UInt32 id)
-		{
-			this.entryType = entryType;
-			this.id = id;
-		}
-
-		public virtual UInt16 Check()
-		{
-			return 0;
-		}
-
-		public virtual string Text()
-		{
-			return null;
-		}
-
-		public virtual string TooltipText()
-		{
-			return null;
-		}
-	}
-
-	public class HeaderTreeNode : TypeIDTreeNode
-	{
-		public string title;
-		
-		public HeaderTreeNode(EntryType type) : base(EntryType.Header, (UInt16)type)
-		{
-			switch(type)
-			{
-				case EntryType.Friend:
-					title = "Friends";
-					break;
-				case EntryType.Stranger:
-					title = "Strangers";
-					break;
-				case EntryType.Group:
-					title = "Groups";
-					break;
-				case EntryType.Invitation:
-					title = "Invites";
-					break;
-				case EntryType.Rendezvous:
-					title = "Rendezvous";
-					break;
-				default:
-					title = "???";
-					break;
-			}
-		}
-
-		public override string Text()
-		{
-			return title;
-		}
-	}
-
-	public class KeyTreeNode : TypeIDTreeNode
+	internal class KeyTreeNode : TypeIDTreeNode
 	{
 		public ToxKey key;
 
@@ -86,19 +14,30 @@ namespace ToxSharpBasic
 		}
 	}
 
-	public class FriendTreeNode : KeyTreeNode
+	internal class FriendTreeNode : KeyTreeNode
 	{
-		public string name;
+		protected string _name;
+		public string name { get { return _name; } }
 		public bool online;
 		public FriendPresenceState presence;	// enum
 		public string state;	// text
 
 		public FriendTreeNode(UInt16 id, ToxKey key, string name, bool online, FriendPresenceState presence, string state) : base(EntryType.Friend, id, key)
 		{
-			this.name = name;
+			if (name != null)
+				_name = name;
+			else
+				_name = "";
+
 			this.online = online;
 			this.presence = presence;
 			this.state = state;
+		}
+
+		public void NameUpdate(string name)
+		{
+			if (name != null)
+				_name = name;
 		}
 
 		public override UInt16 Check()
@@ -108,12 +47,12 @@ namespace ToxSharpBasic
 
 		public override string Text()
 		{
-			return name;
+			return _name;
 		}
 
 		public override string TooltipText()
 		{
-			string res = name;
+			string res = _name;
 			if (state != null)
 				res += " (" + state + ")";
 			if (presence != FriendPresenceState.Invalid)
@@ -144,7 +83,7 @@ namespace ToxSharpBasic
 		}
 	}
 
-	public class StrangerTreeNode : KeyTreeNode
+	internal class StrangerTreeNode : KeyTreeNode
 	{
 		public string message;
 		
@@ -168,20 +107,24 @@ namespace ToxSharpBasic
 		}
 	}
 
-	public class GroupTreeNode : KeyTreeNode
+	internal class GroupTreeNode : KeyTreeNode
 	{
-		public string name;
+		protected string _name;
+		public string name { get { return _name; } }
 
 		public GroupTreeNode(UInt16 id, ToxKey key, string name) : base(EntryType.Group, id, key)
 		{
-			this.name = name;
+			if (name != null)
+				_name = name;
+			else
+				_name = "";
 		}
 
 		public override string Text()
 		{
 			string res = "[" + id + "]";
-			if ((name != null) && (name.Length > 0))
-				res += " " + name;
+			if (_name.Length > 0)
+				res += " " + _name;
 
 			return res;
 		}
@@ -192,7 +135,7 @@ namespace ToxSharpBasic
 		}
 	}
 
-	public class InvitationTreeNode : KeyTreeNode
+	internal class InvitationTreeNode : KeyTreeNode
 	{
 		public UInt16 inviterid;
 		public string invitername;
@@ -213,7 +156,7 @@ namespace ToxSharpBasic
 		}
 	}
 
-	public class RendezvousTreeNode : TypeIDTreeNode
+	internal class RendezvousTreeNode : TypeIDTreeNode
 	{
 		protected static ushort unique = 1;
 
@@ -249,7 +192,7 @@ namespace ToxSharpBasic
 		}
 	}
 
-	public class GroupMemberTreeNode : TypeIDTreeNode
+	internal class GroupMemberTreeNode : TypeIDTreeNode
 	{
 		public GroupTreeNode group;
 		public UInt16 subid;
@@ -268,7 +211,7 @@ namespace ToxSharpBasic
 		}
 	}
 
-	public class DataStorage : Interfaces.IDataReactions
+	internal class DataStorage : Interfaces.IDataReactions
 	{
 		protected class DataStorageSub
 		{

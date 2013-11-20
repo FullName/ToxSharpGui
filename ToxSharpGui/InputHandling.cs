@@ -3,9 +3,7 @@ using System;
 
 namespace ToxSharpBasic
 {
-	public enum InputKey { None, Up, Down, Tab, Return };
-
-	public class InputHandling
+	internal class InputHandling
 	{
 		protected ToxInterface toxsharp;
 		protected Interfaces.IUIReactions uireactions;
@@ -244,7 +242,7 @@ namespace ToxSharpBasic
 				if (toxsharp.ToxNameSet(namestr) == 1)
 				{
 					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Your name is now " + namestr + ".");
-					uireactions.TitleUpdate();
+					uireactions.TitleUpdate(namestr, toxsharp.ToxSelfID());
 					return 1;
 				}
 
@@ -382,19 +380,19 @@ namespace ToxSharpBasic
 			return (handled == 1);
 		}
 
-		public bool Do(string text, InputKey key)
+		public bool Do(string text, Interfaces.InputKey key)
 		{
 			switch(key) {
-				case InputKey.Up:
-				case InputKey.Down:
+				case Interfaces.InputKey.Up:
+				case Interfaces.InputKey.Down:
 					// Combobox, keeping the current input unless a different is selected
 					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "TODO: Command history.");
 					return false;
-				case InputKey.Tab:
+				case Interfaces.InputKey.Tab:
 					// Combobox, popping friends, strangers or groups depending on input
 					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "TODO: Support input on entering an ID.");
 					return false;
-				case InputKey.Return:
+				case Interfaces.InputKey.Return:
 					return InputHandle(text);
 				default:
 					return false;
