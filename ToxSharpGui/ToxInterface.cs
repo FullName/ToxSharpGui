@@ -119,7 +119,9 @@ namespace ToxSharpBasic
 		protected Sys.IntPtr tox = Sys.IntPtr.Zero;
 		protected Sys.Threading.Mutex toxmutex = null;
 		protected Sys.Threading.Thread toxpollthread = null;
-		public byte toxpollthreadrequestend = 0;
+
+		protected enum ToxPollThreadState { NOT_CREATED, STARTING, RUNNING, ENDREQUESTED, ENDED, DONE };
+		protected ToxPollThreadState toxpollstate = ToxPollThreadState.NOT_CREATED;
 
 		protected static string ToString(byte[] bin)
 		{
@@ -140,15 +142,25 @@ namespace ToxSharpBasic
 		[SRIOp.DllImport("toxcore")]
 		private static extern int tox_wait_execute(Sys.IntPtr tox, byte[] data, Sys.UInt16 length, Sys.UInt16 milliseconds);
 
-		private void toxpollfunc()
+		private void ToxPollFunc()
 		{
+			toxmutex.WaitOne();
+			if (toxpollstate < ToxPollThreadState.RUNNING)
+				toxpollstate = ToxPollThreadState.RUNNING;
+			toxmutex.ReleaseMutex();
+
+			// give UI some time to come up
+			// TODO: let ui start this
+			Sys.Threading.Thread.Sleep(2000);
+			MainClass.PrintDebug("Poll thread now running.\n");
+
 			bool connected_ui = false;
 			Sys.UInt16 milliseconds = 400;
 			Sys.UInt32 accumulated = 0;
 			Sys.UInt32 accumulated_max = 1600;
 			int res, counter = 3;
 			byte[] data = new byte[0];
-			while(toxpollthreadrequestend == 0)
+			while(toxpollstate == ToxPollThreadState.RUNNING)
 			{
 				Sys.UInt16 length = (Sys.UInt16)data.Length;
 
@@ -189,7 +201,7 @@ namespace ToxSharpBasic
 						res = -1;
 					}
 
-					if (toxpollthreadrequestend != 0)
+					if (toxpollstate != ToxPollThreadState.RUNNING)
 						break;
 	
 					if (res == 0)
@@ -204,7 +216,7 @@ namespace ToxSharpBasic
 
 				// wait() not working: sleep "hard" 250ms
 				if (res == -1)
-					Sys.Threading.Thread.Sleep(250000);
+					Sys.Threading.Thread.Sleep(250);
 
 				toxmutex.WaitOne();
 				tox_do(tox);
@@ -225,7 +237,11 @@ namespace ToxSharpBasic
 
 			Sys.Console.WriteLine();
 			Sys.Console.WriteLine("***");
-			toxpollthreadrequestend = 2;
+
+			toxmutex.WaitOne();
+			if (toxpollstate < ToxPollThreadState.ENDED)
+				toxpollstate = ToxPollThreadState.ENDED;
+			toxmutex.ReleaseMutex();
 		}
 
 		[SRIOp.DllImport("toxcore")]
@@ -237,12 +253,12 @@ namespace ToxSharpBasic
 			{
 				if ((args[i] == "-c") && (i + 1 < args.Length))
 				{
-					Sys.Console.WriteLine("Configuration directory: " + args[i + 1]);
+					MainClass.PrintDebug("Configuration directory: " + args[i + 1]);
 					_ToxConfigHome = args[i + 1];
 				}
 				if ((args[i] == "-f") && (i + 1 < args.Length))
 				{
-					Sys.Console.WriteLine("Data filename: " + args[i + 1]);
+					MainClass.PrintDebug("Data filename: " + args[i + 1]);
 					_ToxConfigData = args[i + 1];
 				}
 			}
@@ -270,15 +286,36 @@ namespace ToxSharpBasic
 
 		public void ToxStopAndSave()
 		{
-			if (toxpollthreadrequestend == 0)
-				toxpollthreadrequestend = 1;
+			if (toxpollstate == ToxPollThreadState.NOT_CREATED)
+				return;
 
-			uint tries = 50;
-			while ((toxpollthreadrequestend < 2) && (tries-- > 0))
-				System.Threading.Thread.Sleep(100);
+			toxmutex.WaitOne();
+			if (toxpollstate == ToxPollThreadState.RUNNING)
+				toxpollstate = ToxPollThreadState.ENDREQUESTED;
+			toxmutex.ReleaseMutex();
 
-			if (toxpollthreadrequestend == 2)
-				ToxSave();
+			if (toxpollstate == ToxPollThreadState.ENDREQUESTED)
+			{
+				uint tries = 100;
+				while ((toxpollstate < ToxPollThreadState.ENDED) && (tries-- > 0))
+					System.Threading.Thread.Sleep(100);
+			}
+
+			if (toxpollstate == ToxPollThreadState.ENDED)
+			{
+				bool save = false;
+
+				toxmutex.WaitOne();
+				if (toxpollstate == ToxPollThreadState.ENDED)
+				{
+					save = true;
+					toxpollstate = ToxPollThreadState.DONE;
+				}
+				toxmutex.ReleaseMutex();
+
+				if (save)
+					ToxSave();  // sets lock internally
+			}
 		}
 
 		protected string _ToxConfigData;
@@ -319,7 +356,8 @@ namespace ToxSharpBasic
 				}
 				else if (SysEnv.OSVersion.Platform == System.PlatformID.Win32NT)
 				{
-					string path = SysEnv.GetEnvironmentVariable("USERPROFILE");
+					// standard windows: <userdir>/appdata/local
+					string path = SysEnv.GetEnvironmentVariable("LOCALAPPDATA");
 					if (path == null)
 						path = "";
 					else if (path != "")
@@ -338,6 +376,7 @@ namespace ToxSharpBasic
 						path = "";
 					else if (path != "")
 					{
+						// taken from Toxic
 						path += "/Library/Application Support/Tox/";
 						if (!SysIO.Directory.Exists(path))
 							SysIO.Directory.CreateDirectory(path);
@@ -348,6 +387,7 @@ namespace ToxSharpBasic
 				else
 					_ToxConfigHome = "";
 
+				MainClass.PrintDebug("Default data directory: " + _ToxConfigHome);
 				return _ToxConfigHome;
 			}
 		}
@@ -523,15 +563,19 @@ namespace ToxSharpBasic
 				return -1;
 
 			toxmutex.WaitOne();
-			int rc = ToxBootstrapInternal();
-			toxmutex.ReleaseMutex();
 
-			if (toxpollthread == null)
+			int rc = ToxBootstrapInternal();
+			if (toxpollstate == ToxPollThreadState.NOT_CREATED)
 			{
-				toxpollthread = new Sys.Threading.Thread(toxpollfunc);
+				Sys.Threading.Thread toxpollthread = new Sys.Threading.Thread(ToxPollFunc);
 				if (toxpollthread != null)
+				{
+					toxpollstate = ToxPollThreadState.STARTING;
 					toxpollthread.Start();
+				}
 			}
+
+			toxmutex.ReleaseMutex();
 
 			return rc;
 		}
@@ -545,6 +589,7 @@ namespace ToxSharpBasic
 
 			try
 			{
+				MainClass.PrintDebug("Reading bootstrap servers from: " + ToxConfigHome + "DHTservers");
 				SysIO.FileStream fs = new SysIO.FileStream(ToxConfigHome + "DHTservers", System.IO.FileMode.Open);
 				SysIO.StreamReader sr = new SysIO.StreamReader(fs);
 				while(!sr.EndOfStream)
@@ -566,9 +611,17 @@ namespace ToxSharpBasic
 						strfld[2].ToCharArray();
 						for(int i = 0; i < 32; i++)
 							Sys.Byte.TryParse(strfld[2].Substring(i * 2, 2), SysGlobal.NumberStyles.HexNumber, null, out key[i]);
-	
-						if (1 == tox_bootstrap_from_address(tox, strfld[0] + '\0', 1, port, key))
-							addrok++;
+
+						try
+						{
+							if (1 == tox_bootstrap_from_address(tox, strfld[0] + '\0', 1, port, key))
+								addrok++;
+							else
+								MainClass.PrintDebug("Failed to parse line: " + line);
+						}
+						catch
+						{
+						}
 					}
 				}
 			}
