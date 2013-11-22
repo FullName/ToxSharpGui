@@ -332,7 +332,7 @@ namespace ToxSharpBasic
 		}
 
 		protected string _ToxConfigHome;
-		protected string ToxConfigHome
+		public string ToxConfigHome
 		{
 			get
 			{

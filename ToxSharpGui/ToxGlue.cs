@@ -36,9 +36,25 @@ namespace ToxSharpBasic
 			return inputhandling.Do(text, key);
 		}
 
-		public void QuitPrepare()
+		public void QuitPrepare(string uistate)
 		{
 			toxsharp.ToxStopAndSave();
+
+			string configdir = toxsharp.ToxConfigHome;
+			if (System.IO.Directory.Exists(configdir))
+			{
+				try
+				{
+					string uistatename = configdir + System.IO.Path.DirectorySeparatorChar + "state.ui";
+					System.IO.StreamWriter stream = new System.IO.StreamWriter(uistatename, false);
+					stream.Write(uistate);
+					stream.Close();
+				}
+				catch (Exception e)
+				{
+					System.Console.WriteLine("ToxSharpGui: Failed to write ui state file: >>" + e.Message + "\n<<\n");
+				}
+			}
 		}
 
 		protected ToxInterface toxsharp = null;

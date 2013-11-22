@@ -44,7 +44,10 @@ namespace ToxSharpBasic
 		{
 			for(int i = 0; i < args.Length; i++)
 				if ((args[i] == "-v") || (args[i] == "--verbose"))
+				{
 					printdebug = true;
+					PrintDebug("Verbose mode on.");
+				}
 
 			if ((args.Length == 1) && ((args[0].Substring(0, 2) == "-h") || (args[0].Substring(0, 2) == "/h")))
 			{
@@ -63,7 +66,7 @@ namespace ToxSharpBasic
 			}
 			catch(Exception e)
 			{
-				System.Console.WriteLine("Tripped. Unhandled exception follows:\n" + e.Message + "\n\nInner data:\n" + e.InnerException + "\n");
+				System.Console.WriteLine("Tripped. Unhandled exception follows >>\n" + e.Message + "\n<<\nInner data >>\n" + e.InnerException + "\n<<\n@" + e.Source);
 			}
 			finally
 			{
@@ -81,7 +84,7 @@ namespace ToxSharpBasic
 			Interfaces.IUIFactory uifactory = null;
 			Interfaces.IUIReactions uiobject = null;
 			foreach(string name in args)
-				if (name.Substring(0, 6) == "--gui=")
+				if ((name.Length > 6) && (name.Substring(0, 6) == "--gui="))
 					uiname = name.Substring(6);
 
 			if (uiname != null)
@@ -134,26 +137,47 @@ namespace ToxSharpBasic
 			glue.Init(toxsharp, uireactions, datastorage);
 			toxsharp.ToxInit(glue, glue, glue, glue);
 
+			uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Welcome to Tox & Tox#Gui! For help, input: /h");
+			uireactions.ConnectState(false, "Connecting...");
+
 			PrintDebug("Bootstrapping into the 'net.\n");
 			int bootstrapped_cnt = toxsharp.ToxBootstrap();
 			if (bootstrapped_cnt > 0)
-				uireactions.TextAdd(Interfaces.SourceType.System , 0, "SYSTEM", "Sent connection requests to " + bootstrapped_cnt + " other clients...");
+				uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Sent connection requests to " + bootstrapped_cnt + " other clients...");
 			else
 			{
 				if (bootstrapped_cnt == 0)
-					uireactions.TextAdd(Interfaces.SourceType.System , 0, "SYSTEM", "No servers found in DHTservers: File is missing or malformed.");
+					uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "No servers found in DHTservers: File is missing or malformed.");
 				else
-					uireactions.TextAdd(Interfaces.SourceType.System , 0, "SYSTEM", "Failed to send any connection requests to other clients: " + bootstrapped_cnt);
+					uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Failed to send any connection requests to other clients: " + bootstrapped_cnt);
 
-				uireactions.TextAdd(Interfaces.SourceType.System , 0, "SYSTEM", "Most likely, you won't be able to connect to anybody.");
+				uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Most likely, you won't be able to connect to anybody.");
 			}
 
 			string selfname = toxsharp.ToxNameGet();
 			if (selfname.Length > 0)
 				uireactions.TitleUpdate(selfname, toxsharp.ToxSelfID());
+			else
+				uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "You don't have a name yet. Input a name with: /n name");
+
+			string uistate = null;
+			if (System.IO.Directory.Exists(toxsharp.ToxConfigHome))
+			{
+				try
+				{
+					string uistatename = toxsharp.ToxConfigHome + System.IO.Path.DirectorySeparatorChar + "state.ui";
+					System.IO.StreamReader stream = new System.IO.StreamReader(uistatename);
+					uistate = stream.ReadToEnd();
+					stream.Close();
+				}
+				catch
+				{
+					uistate = null;
+				}
+			}
 
 			PrintDebug("Running main loop.\n");
-			uireactions.Run();
+			uireactions.Run(uistate);
 			uifactory.Quit();
 		}
 	}

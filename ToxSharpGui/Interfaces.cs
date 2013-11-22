@@ -106,7 +106,7 @@ namespace ToxSharpBasic
 			void Init(Interfaces.IUIActions uiactions);
 
 			// run application (main loop, when this comes back, program terminates)
-			void Run();
+			void Run(string uistate);
 
 			// main window: title parts
 			void TitleUpdate(string name, string ID);
@@ -156,7 +156,7 @@ namespace ToxSharpBasic
 			bool InputLine(string text, InputKey key);
 
 			// ui is almost done, stop threading and save state
-			void QuitPrepare();
+			void QuitPrepare(string uistate);
 		}
 
 		public interface IActions
