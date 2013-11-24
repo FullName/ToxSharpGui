@@ -8,6 +8,11 @@ namespace ToxSharpBasic
 	internal class ToxGlue : IToxSharpBasic, IToxSharpFriend, IToxSharpGroup, IToxSharpRendezvous,
 	                       Interfaces.IUIActions
 	{
+		public void PrintDebug(string line)
+		{
+			MainClass.PrintDebug(line);
+		}
+
 		protected Popups popups;
 
 		public void TreePopup(object parent, Point position, TypeIDTreeNode typeid, Interfaces.Button button, Interfaces.Click click)

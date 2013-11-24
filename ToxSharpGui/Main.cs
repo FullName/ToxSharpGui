@@ -40,6 +40,7 @@ namespace ToxSharpBasic
 				System.Console.WriteLine("[DBG] " + line);
 		}
 
+		[STAThread]
 		public static void Main(string[] args)
 		{
 			for(int i = 0; i < args.Length; i++)
@@ -119,20 +120,20 @@ namespace ToxSharpBasic
 				return;
 			}
 
-			PrintDebug("UI created successfully. Setting all up.\n");
+			PrintDebug("UI created successfully. Setting all up.");
 			Interfaces.IUIReactions uireactions = uiobject as Interfaces.IUIReactions;
 			if (uireactions == null)
 				return;
 
-			PrintDebug("Cleaning old logfiles.\n");
+			PrintDebug("Cleaning old logfiles.");
 			foreach(string name in System.IO.Directory.EnumerateFiles(".", "*.log"))
 				System.IO.File.Delete(name);
 
-			PrintDebug("Creating remaining objects.\n");
+			PrintDebug("Creating remaining objects.");
 			DataStorage datastorage = new DataStorage();
 			ToxGlue glue = new ToxGlue();
 
-			PrintDebug("Linking it all together.\n");
+			PrintDebug("Linking it all together.");
 			uireactions.Init(glue);
 			glue.Init(toxsharp, uireactions, datastorage);
 			toxsharp.ToxInit(glue, glue, glue, glue);
@@ -140,7 +141,7 @@ namespace ToxSharpBasic
 			uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Welcome to Tox & Tox#Gui! For help, input: /h");
 			uireactions.ConnectState(false, "Connecting...");
 
-			PrintDebug("Bootstrapping into the 'net.\n");
+			PrintDebug("Bootstrapping into the 'net.");
 			int bootstrapped_cnt = toxsharp.ToxBootstrap();
 			if (bootstrapped_cnt > 0)
 				uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Sent connection requests to " + bootstrapped_cnt + " other clients...");
@@ -176,7 +177,7 @@ namespace ToxSharpBasic
 				}
 			}
 
-			PrintDebug("Running main loop.\n");
+			PrintDebug("Running main loop.");
 			uireactions.Run(uistate);
 			uifactory.Quit();
 		}

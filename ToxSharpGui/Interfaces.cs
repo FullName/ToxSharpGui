@@ -149,6 +149,9 @@ namespace ToxSharpBasic
 
 		public interface IUIActions
 		{
+			// debug prints
+			void PrintDebug(string line);
+
 			// click on tree item, parent object is potentially needed as popup menu parent
 			void TreePopup(object parent, Point position, TypeIDTreeNode typeid, Button button, Click click);
 
