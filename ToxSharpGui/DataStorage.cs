@@ -131,7 +131,7 @@ namespace ToxSharpBasic
 
 		public UInt32 MemberID(UInt16 subid)
 		{
-			return id << 16 + subid;
+			return (id << 16) + subid;
 		}
 	}
 
@@ -196,7 +196,18 @@ namespace ToxSharpBasic
 	{
 		public GroupTreeNode group;
 		public UInt16 subid;
-		public string name;
+		protected string _name;
+		public string name
+		{
+			get { return _name; }
+			set
+			{
+				if (value == null)
+					_name = "";
+				else
+					_name = value;
+			}
+		}
 
 		public GroupMemberTreeNode(GroupTreeNode group, UInt16 id, string name) : base(EntryType.GroupMember, group.MemberID(id))
 		{

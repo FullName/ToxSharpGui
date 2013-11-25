@@ -99,9 +99,27 @@ namespace ToxSharpBasic
 			void Quit();
 		}
 
+		public delegate void CallToxDo(IntPtr tox);
+
 		// independence of GUI toolkit: required reactions
 		public interface IUIReactions
 		{
+			// the first two are calling from the poll thread and must Invoke()
+			//    into the GUI thread
+
+			// call tox_do(), so the callbacks return in the GUI thread
+			// not that pretty, but the other option is to convert everything
+			//    else here into EventHandlers(object, args)
+			void ToxDo(CallToxDo calltoxdo, IntPtr tox);
+
+			// left side: connect "button"
+			void ConnectState(bool connected, string text);
+
+			/********************************************************************/
+			/********************************************************************/
+			/********************************************************************/
+			/********************************************************************/
+
 			// init main window
 			void Init(Interfaces.IUIActions uiactions);
 
@@ -110,9 +128,6 @@ namespace ToxSharpBasic
 
 			// main window: title parts
 			void TitleUpdate(string name, string ID);
-
-			// left side: connect "button"
-			void ConnectState(bool connected, string text);
 
 			// left side: tree
 			void TreeAdd(TypeIDTreeNode typeid);

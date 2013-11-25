@@ -10,6 +10,7 @@ namespace ToxSharpBasic
 {
 	internal interface IToxSharpBasic
 	{
+		void ToxDo(Interfaces.CallToxDo calltoxdo, Sys.IntPtr tox);
 		void ToxConnected(bool state);
 	}
 
@@ -27,11 +28,14 @@ namespace ToxSharpBasic
 		void ToxFriendAction(int friendId, string action);
 	}
 
+	internal enum ToxGroupNamelistChangeType { PeerAdded = 0, PeerRemoved, PeerNamechange, Unknown = 255 };
+
 	internal interface IToxSharpGroup
 	{
 		void ToxGroupchatInit(Sys.UInt16 groupchatnum);
 		void ToxGroupchatInvite(int friendnumber, string friendname, ToxKey friend_groupkey);
 		void ToxGroupchatMessage(int groupnumber, int friendgroupnumber, string message);
+		void ToxGroupNamelistChange(int groupnumber, int peernumber, ToxGroupNamelistChangeType change);
 	}
 
 	internal interface IToxSharpRendezvous
@@ -219,7 +223,9 @@ namespace ToxSharpBasic
 					Sys.Threading.Thread.Sleep(250);
 
 				toxmutex.WaitOne();
-				tox_do(tox);
+				// tox_do(tox);
+				if (cbbasic != null)
+					cbbasic.ToxDo(ToxDo, tox);
 				toxmutex.ReleaseMutex();
 
 				if (counter-- < 0)
@@ -242,6 +248,11 @@ namespace ToxSharpBasic
 			if (toxpollstate < ToxPollThreadState.ENDED)
 				toxpollstate = ToxPollThreadState.ENDED;
 			toxmutex.ReleaseMutex();
+		}
+
+		public static void ToxDo(Sys.IntPtr tox)
+		{
+			tox_do(tox);
 		}
 
 		[SRIOp.DllImport("toxcore")]
@@ -1025,6 +1036,44 @@ namespace ToxSharpBasic
 				cbgroup.ToxGroupchatMessage(groupnumber, friendgroupnumber, CutAtNul(System.Text.Encoding.UTF8.GetString(message, 0, length - 1)));
 		}
 
+		/*
+		 * void callback(Tox *tox, int groupnumber, int peernumber, TOX_CHAT_CHANGE change, void *userdata);
+		 *
+		 * typedef enum {
+		 *     TOX_CHAT_CHANGE_PEER_ADD,
+		 *     TOX_CHAT_CHANGE_PEER_DEL,
+		 *     TOX_CHAT_CHANGE_PEER_NAME,
+		 * } TOX_CHAT_CHANGE;
+		 * void tox_callback_group_namelistchange(Tox *tox,
+		 *                                      void (*function)(Tox *tox, int, int, uint8_t, void *),
+		 *                                      void *userdata);
+		 */
+
+		protected delegate void CallBackDelegateGroupNamelistChange(Sys.IntPtr tox, int groupnumber, int peernumber, byte change, Sys.IntPtr X);
+		protected CallBackDelegateGroupNamelistChange cbgroupnamelistchange;
+
+		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
+		private static extern void tox_callback_group_namelistchange(Sys.IntPtr tox, CallBackDelegateGroupNamelistChange cbgroupnamelistchange, Sys.IntPtr X);
+
+		protected void ToxCallbackGroupNamelistChange(Sys.IntPtr tox, int groupnumber, int peernumber, byte change, Sys.IntPtr X)
+		{
+			// MainClass.PrintDebug("Group::Namelist::Change(" + groupnumber + "." + peernumber + " => " + change + ")");
+			if (cbgroup != null)
+			{
+				ToxGroupNamelistChangeType changetype = ToxGroupNamelistChangeType.Unknown;
+				try
+				{
+					changetype = (ToxGroupNamelistChangeType)change;
+				}
+				catch
+				{
+					changetype = ToxGroupNamelistChangeType.Unknown;
+				}
+
+				cbgroup.ToxGroupNamelistChange(groupnumber, peernumber, changetype);
+			}
+		}
+
 /*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/
@@ -1078,6 +1127,12 @@ namespace ToxSharpBasic
 
 			toxmutex.WaitOne();
 			tox_callback_group_message(tox, cbgroupchatmessage, Sys.IntPtr.Zero);
+			toxmutex.ReleaseMutex();
+
+			cbgroupnamelistchange = new CallBackDelegateGroupNamelistChange(ToxCallbackGroupNamelistChange);
+
+			toxmutex.WaitOne();
+			tox_callback_group_namelistchange(tox, cbgroupnamelistchange, Sys.IntPtr.Zero);
 			toxmutex.ReleaseMutex();
 		}
 

@@ -79,6 +79,12 @@ namespace ToxSharpBasic
 
 		protected bool connected = false;
 
+		public void ToxDo(Interfaces.CallToxDo calltoxdo, IntPtr tox)
+		{
+			if (uireactions != null)
+				uireactions.ToxDo(calltoxdo, tox);
+		}
+
 		public void ToxConnected(bool state)
 		{
 			connected = state;
@@ -115,8 +121,12 @@ namespace ToxSharpBasic
 			datareactions.Add(strangernew);
 			uireactions.TreeAdd(strangernew);
 
+			string keysplit = strangernew.key.str.Substring( 0, 19) + " "
+				            + strangernew.key.str.Substring(19, 19) + " "
+				            + strangernew.key.str.Substring(38, 19) + " "
+				            + strangernew.key.str.Substring(57, 19);
 			uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "New friend request: Message is [" + message + "]\n" +
-													 "ID: " + strangernew.key.str);
+													 "ID: " + keysplit);
 		}
 			
 		protected List<string> FriendPresenceStateToString;
@@ -297,6 +307,67 @@ namespace ToxSharpBasic
 			}
 
 			uireactions.TextAdd(Interfaces.SourceType.Group, (UInt16)groupnumber, "#" + groupnumber + " - <" + name + ">", message);
+		}
+
+		public void ToxGroupNamelistChange(int _group, int _peer, ToxGroupNamelistChangeType change)
+		{
+			// uireactions.TextAdd(Interfaces.SourceType.Debug, 0, "DEBUG", "Group::Namelist::Change(" + _group + "." + _peer + ", " + (uint)change + ")");
+			UInt16 group, peer;
+			try
+			{
+				group = (UInt16)_group;
+				peer = (UInt16)_peer;
+			}
+			catch
+			{
+				return;
+			}
+
+			GroupTreeNode groupnode = datareactions.Find(TypeIDTreeNode.EntryType.Group, group) as GroupTreeNode;
+			if (groupnode == null)
+				return;
+
+			GroupMemberTreeNode membernode;
+			switch(change)
+			{
+				case ToxGroupNamelistChangeType.PeerAdded:
+					membernode = datareactions.Find(TypeIDTreeNode.EntryType.GroupMember, groupnode.MemberID(peer)) as GroupMemberTreeNode;
+					if (membernode == null)
+					{
+						membernode = new GroupMemberTreeNode(groupnode, peer, null);
+						datareactions.Add(membernode);
+						uireactions.TreeAddSub(membernode, groupnode);
+						uireactions.TextAdd(Interfaces.SourceType.Group, group, "GROUP", "Peer " + peer + " joined.");
+					}
+
+					break;
+
+				case ToxGroupNamelistChangeType.PeerRemoved:
+					membernode = datareactions.Find(TypeIDTreeNode.EntryType.GroupMember, groupnode.MemberID(peer)) as GroupMemberTreeNode;
+					if (membernode != null)
+					{
+						uireactions.TreeDelSub(membernode, groupnode);
+						datareactions.Delete(membernode);
+						uireactions.TextAdd(Interfaces.SourceType.Group, group, "GROUP", "Peer " + peer + " \"" + membernode.Text() + "\" left.");
+					}
+
+					break;
+
+				case ToxGroupNamelistChangeType.PeerNamechange:
+					membernode =  datareactions.Find(TypeIDTreeNode.EntryType.GroupMember, groupnode.MemberID(peer)) as GroupMemberTreeNode;
+					if (membernode != null)
+					{
+						string namestr;
+						if (toxsharp.ToxGroupchatPeername(group, peer, out namestr))
+						{
+							membernode.name = namestr;
+							uireactions.TreeUpdateSub(membernode, groupnode);
+							uireactions.TextAdd(Interfaces.SourceType.Group, group, "GROUP", "Peer " + peer + " changed his name to: \"" + membernode.Text() + "\"");
+						}
+					}
+
+					break;
+			}
 		}
 
 	/****************************************************************************************/
