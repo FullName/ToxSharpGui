@@ -209,16 +209,16 @@ namespace ToxSharpBasic
 			}
 		}
 
-		public GroupMemberTreeNode(GroupTreeNode group, UInt16 id, string name) : base(EntryType.GroupMember, group.MemberID(id))
+		public GroupMemberTreeNode(GroupTreeNode group, UInt16 peer, string name) : base(EntryType.GroupMember, group.MemberID(peer))
 		{
 			this.group = group;
-			this.subid = id;
+			this.subid = peer;
 			this.name = name;
 		}
 
 		public override string Text()
 		{
-			return "[" + id + "] " + name;
+			return "[" + subid + "] " + name;
 		}
 	}
 

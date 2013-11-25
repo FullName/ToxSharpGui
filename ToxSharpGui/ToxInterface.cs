@@ -222,11 +222,9 @@ namespace ToxSharpBasic
 				if (res == -1)
 					Sys.Threading.Thread.Sleep(250);
 
-				toxmutex.WaitOne();
-				// tox_do(tox);
+				// GUI thread runs tox_do() due to callbacks
 				if (cbbasic != null)
 					cbbasic.ToxDo(ToxDo, tox);
-				toxmutex.ReleaseMutex();
 
 				if (counter-- < 0)
 				{
@@ -250,9 +248,11 @@ namespace ToxSharpBasic
 			toxmutex.ReleaseMutex();
 		}
 
-		public static void ToxDo(Sys.IntPtr tox)
+		public void ToxDo(Sys.IntPtr tox)
 		{
+			toxmutex.WaitOne();
 			tox_do(tox);
+			toxmutex.ReleaseMutex();
 		}
 
 		[SRIOp.DllImport("toxcore")]
