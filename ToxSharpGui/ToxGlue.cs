@@ -5,9 +5,101 @@ using System.Collections.Generic;
 
 namespace ToxSharpBasic
 {
-	internal class ToxGlue : IToxSharpBasic, IToxSharpFriend, IToxSharpGroup, IToxSharpRendezvous,
-	                       Interfaces.IUIActions
+	// common code for InputHandling and Popups, essentially doing
+	// the same operation with the same arguments on two different paths
+	internal interface IToxGlue
 	{
+		int RendezvousCreateOrUpdate(string text, DateTime time);
+		bool GroupchatAdd();
+		bool GroupchatInviteaccept(UInt16 invitenumber);
+		bool GroupchatMessage(UInt16 groupnumber, string message);
+	}
+
+	internal class ToxGlue : IToxSharpBasic, IToxSharpFriend, IToxSharpGroup, IToxSharpRendezvous,
+	                       Interfaces.IUIActions, IToxGlue
+	{
+		public int RendezvousCreateOrUpdate(string text, DateTime time)
+		{
+			RendezvousTreeNode rendezvous = datareactions.FindRendezvous(text);
+			if (rendezvous == null)
+			{
+				rendezvous = new RendezvousTreeNode(text, time);
+				uireactions.TreeAdd(rendezvous);
+				datareactions.Add(rendezvous);
+			}
+			else
+			{
+				if (time == rendezvous.time)
+				{
+					uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Identical rendezvous already in place.");
+					return 0;
+				}
+
+				rendezvous.time = time;
+			}
+
+			int res = toxsharp.ToxPublish(rendezvous.ids(), text, time);
+			if (res > 0)
+			{
+				uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Set up successfully.\n");
+				rendezvous.current = true;
+				uireactions.TreeUpdate(rendezvous);
+			}
+			else if (res == 0)
+				uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to set up due to invalid input.\n");
+			else if (res < 0)
+			{
+				if (res == -2)
+					uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to set up, function missing.\n");
+				else if (res == -3)
+					uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Oops. Invalid ID.\n");
+				else if (res == -4)
+					uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Can't set up, different rendezvous already in progress.\n");
+				else
+					uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to set up for unknown reason.\n");
+			}
+
+			return res;
+		}
+
+		public bool GroupchatAdd()
+		{
+			int groupnumber;
+			if (toxsharp.ToxGroupchatAdd(out groupnumber))
+			{
+				GroupTreeNode groupchat = new GroupTreeNode((UInt16)groupnumber, null, null);
+				datareactions.Add(groupchat);
+				uireactions.TreeAdd(groupchat);
+				uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Created new group chat " + groupnumber + ".");
+				return true;
+			}
+			else
+			{
+				uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Failed to create new group chat.");
+				return false;
+			}
+		}
+
+		public bool GroupchatMessage(UInt16 groupnumber, string message)
+		{
+			if (toxsharp.ToxGroupchatMessage(groupnumber, message))
+			{
+				uireactions.TextAdd(Interfaces.SourceType.Group, groupnumber, toxsharp.ToxNameGet() + " => #" + groupnumber, message);
+				return true;
+			}
+			else
+			{
+				uireactions.TextAdd(Interfaces.SourceType.Group, groupnumber, "SYSTEM", "Failed to send message to group.");
+				return false;
+			}
+		}
+
+		public bool GroupchatInviteaccept(UInt16 invitenumber)
+		{
+			uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Groupchat: Accept invitation: Not yet implemented.\n");
+			return false;
+		}
+
 		public void PrintDebug(string line)
 		{
 			MainClass.PrintDebug(line);
@@ -19,7 +111,7 @@ namespace ToxSharpBasic
 		{
 			if (popups == null)
 			{
-				popups = new Popups(toxsharp, uireactions, datareactions);
+				popups = new Popups(toxsharp, uireactions, datareactions, this);
 				if (popups == null)
 				    return;
 			}
@@ -33,7 +125,7 @@ namespace ToxSharpBasic
 		{
 			if (inputhandling == null)
 			{
-				inputhandling = new InputHandling(toxsharp, uireactions, datareactions);
+				inputhandling = new InputHandling(toxsharp, uireactions, datareactions, this);
 				if (inputhandling == null)
 					return false;
 			}
@@ -362,7 +454,7 @@ namespace ToxSharpBasic
 						{
 							membernode.name = namestr;
 							uireactions.TreeUpdateSub(membernode, groupnode);
-							uireactions.TextAdd(Interfaces.SourceType.Group, group, "GROUP", "Peer " + peer + " changed his name to: \"" + membernode.Text() + "\"");
+							uireactions.TextAdd(Interfaces.SourceType.Group, group, "GROUP", "Peer " + peer + " changed their name to: \"" + membernode.Text() + "\"");
 						}
 					}
 

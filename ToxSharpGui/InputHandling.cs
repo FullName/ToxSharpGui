@@ -5,15 +5,21 @@ namespace ToxSharpBasic
 {
 	internal class InputHandling
 	{
+		private char[] splitter;
 		protected ToxInterface toxsharp;
 		protected Interfaces.IUIReactions uireactions;
 		protected Interfaces.IDataReactions datareactions;
+		protected IToxGlue toxglue;
 
-		public InputHandling(ToxInterface toxsharp, Interfaces.IUIReactions uireactions, Interfaces.IDataReactions datareactions)
+		public InputHandling(ToxInterface toxsharp, Interfaces.IUIReactions uireactions, Interfaces.IDataReactions datareactions, IToxGlue toxglue)
 		{
+			splitter = new char[1];
+			splitter[0] =  ' ';
+
 			this.toxsharp = toxsharp;
 			this.uireactions = uireactions;
 			this.datareactions = datareactions;
+			this.toxglue = toxglue;
 		}
 
 		protected void TextAdd(Interfaces.SourceType type, UInt32 id, string source, string text)
@@ -151,8 +157,74 @@ namespace ToxSharpBasic
 	
 		protected int CommandGroupHandle(string text)
 		{
-			TextAdd(Interfaces.SourceType.System, 0, "DEBUG", "TODO: Group commands not implemented.");
-			return 0;
+			text = text.Substring(2);
+			if (text.Length == 0)
+				return 0;
+
+			int res = 0;
+
+			// ailmn
+			char letter = text.ToLower()[0];
+			switch(letter)
+			{
+				case 'a': // accept invitiation #
+					string[] cmd_invite = text.Split(splitter, 2);
+					if (cmd_invite.Length < 2)
+					{
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Not enough arguments for command.");
+						break;
+					}
+
+					UInt16 invitenumber;
+					if (!UInt16.TryParse(cmd_invite[1], System.Globalization.NumberStyles.Number, null, out invitenumber))
+					{
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Failed to parse group number.");
+						break;
+					}
+
+					res = toxglue.GroupchatInviteaccept(invitenumber) ? 1 : -1;
+					break;
+
+				case 'i': // invite # friend
+					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Command not implemented.");
+					res = -1;
+					break;
+
+				case 'l': // leave #
+					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Command not implemented.");
+					res = -1;
+					break;
+
+				case 'm': // message #
+					string[] cmd_num_message = text.Split(splitter, 3);
+					if (cmd_num_message.Length < 3)
+					{
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Not enough arguments for command.");
+						break;
+					}
+
+					UInt16 groupnumber;
+					if (!UInt16.TryParse(cmd_num_message[1], System.Globalization.NumberStyles.Number, null, out groupnumber))
+					{
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Failed to parse group number.");
+						break;
+					}
+
+					res = toxglue.GroupchatMessage(groupnumber, cmd_num_message[2]) ? 1 : -1;
+					break;
+
+				case 'n': // new
+					res = (toxglue.GroupchatAdd() ? 1 : - 1);
+					break;
+
+				default:
+					break;
+			}
+
+			if (res == 0)
+				TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Command not recognized.");
+
+			return res;
 		}
 
 		protected int CommandHandle(string text)
@@ -191,36 +263,7 @@ namespace ToxSharpBasic
 				else
 					text = parts[1] + " " + parts[2];
 
-				RendezvousTreeNode rendezvous = datareactions.FindRendezvous(text);
-				if (rendezvous == null)
-				{
-					rendezvous = new RendezvousTreeNode(text, DateTime.Now);
-					uireactions.TreeAdd(rendezvous);
-					datareactions.Add(rendezvous);
-				}
-
-				int res = toxsharp.ToxPublish(rendezvous.ids(), text, DateTime.Now);
-				if (res > 0)
-				{
-					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Set up successfully.\n");
-					rendezvous.current = true;
-					uireactions.TreeUpdate(rendezvous);
-				}
-				else if (res == 0)
-					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to set up due to invalid input.\n");
-				else if (res < 0)
-				{
-					if (res == -2)
-						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to set up, function missing.\n");
-					else if (res == -3)
-						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Oops. Invalid ID.\n");
-					else if (res == -4)
-						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Can't set up, different rendezvous already in progress.\n");
-					else
-						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to set up for unknown reason.\n");
-				}
-
-				return res;
+				return toxglue.RendezvousCreateOrUpdate(text, DateTime.Now);
 			}
 
 			if ((len > 1) && (text.Substring(0, 2) =="/n"))
@@ -258,14 +301,27 @@ namespace ToxSharpBasic
 					if (text.Substring(extra + 1, 1) == "f")
 					{
 						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "/fa(dd) <ID>             : Sends a friend request to the given ID.");
-						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "/fr(emove) <ID>  : Removes the given ID from the list of friends.");
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "/fr(emove) <ID>          : Removes the given ID from the list of friends.");
+
 						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "/fm(essage) <name or ID> : Sends a message to the given name or ID.");
 						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "/fd(o) <name or ID>      : Sends an action to the given name.");
-						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "(TODO) Name or ID can be partial as long as it expands uniquely.");
+
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "(IN TEST) Name or ID can be partial as long as it expands uniquely.");
 					}
+
 					if (text.Substring(extra + 1, 1) == "g")
 					{
-						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "TODO: Help for this context.");
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "TODO: Implement these commands.");
+
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "/gn(ew)                           : Add a new group.");
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "/gl(eave) <group #>               : Leave a group.");
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "/gi(nvite) <group #> <name or ID> : Invite a friend to a group.");
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "/ga(ccept) <invitation #>                   : Accept a group invitation.");
+
+
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "/gm(essage) <group #>             : Sends a message to the given group.");
+
+						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "(TODO) Name or ID can be partial as long as it expands uniquely.");
 					}
 				}
 				else
@@ -360,18 +416,7 @@ namespace ToxSharpBasic
 						}
 					}
 					else if (type == Interfaces.SourceType.Group)
-					{
-						if (toxsharp.ToxGroupchatMessage(id, text))
-						{
-							TextAdd(Interfaces.SourceType.Group, id, toxsharp.ToxNameGet() + " => #" + id, text);
-							handled = 1;
-						}
-						else
-						{
-							TextAdd(Interfaces.SourceType.Group, id, "SYSTEM", "Failed to send message to group.");
-							handled = -1;
-						}
-					}
+						handled = toxglue.GroupchatMessage(id, text) ? 1 : -1;
 					else
 						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Internal error. Sorry!");
 				}

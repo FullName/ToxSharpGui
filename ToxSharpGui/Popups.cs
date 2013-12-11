@@ -10,12 +10,14 @@ namespace ToxSharpBasic
 		protected ToxInterface toxsharp;
 		protected Interfaces.IUIReactions uireactions;
 		protected Interfaces.IDataReactions datareactions;
+		protected IToxGlue toxglue;
 
-		public Popups(ToxInterface toxsharp, Interfaces.IUIReactions uireactions, Interfaces.IDataReactions datareactions)
+		public Popups(ToxInterface toxsharp, Interfaces.IUIReactions uireactions, Interfaces.IDataReactions datareactions, IToxGlue toxglue)
 		{
 			this.toxsharp = toxsharp;
 			this.uireactions = uireactions;
 			this.datareactions = datareactions;
+			this.toxglue = toxglue;
 		}
 
 		protected void TextAdd(Interfaces.SourceType type, UInt16 id, string source, string text)
@@ -59,14 +61,7 @@ namespace ToxSharpBasic
 
 			if (action == "new:group")
 			{
-				int groupnumber;
-				if (toxsharp.ToxGroupchatAdd(out groupnumber))
-				{
-					GroupTreeNode groupchat = new GroupTreeNode((UInt16)groupnumber, null, null);
-					datareactions.Add(groupchat);
-					uireactions.TreeAdd(groupchat);
-				}
-
+				toxglue.GroupchatAdd();
 				return;
 			}
 
@@ -96,45 +91,7 @@ namespace ToxSharpBasic
 					}
 				}
 
-				RendezvousTreeNode rendezvous = datareactions.FindRendezvous(input2);
-				if (rendezvous == null)
-				{
-					rendezvous = new RendezvousTreeNode(input2, time);
-					uireactions.TreeAdd(rendezvous);
-					datareactions.Add(rendezvous);
-				}
-				else if (rendezvous != null)
-				{
-					if (time == rendezvous.time)
-					{
-						uireactions.TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Identical rendezvous already in place.");
-						return;
-					}
-
-					rendezvous.time = time;
-				}
-
-				int res = toxsharp.ToxPublish(rendezvous.ids(), input2, time);
-				if (res > 0)
-				{
-					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Set up successfully.\n");
-					rendezvous.current = true;
-					uireactions.TreeUpdate(rendezvous);
-				}
-				else if (res == 0)
-					TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to set up due to invalid input.\n");
-				else if (res < 0)
-				{
-					if (res == -2)
-						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to set up, function missing.\n");
-					else if (res == -3)
-						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Oops. Invalid ID.\n");
-					else if (res == -4)
-						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Can't set up, different rendezvous already in progress.\n");
-					else
-						TextAdd(Interfaces.SourceType.System, 0, "SYSTEM", "Rendezvous: Failed to set up for unknown reason.\n");
-				}
-
+				toxglue.RendezvousCreateOrUpdate(input2, time);
 				return;
 			}
 
