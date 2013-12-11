@@ -565,7 +565,7 @@ namespace ToxSharpBasic
 		private static extern int tox_get_status_message_size(Sys.IntPtr tox, int friendnumber);
 
 		[SRIOp.DllImport("toxcore")] /* string as set by user */
-		private static extern int tox_copy_statusmessage(Sys.IntPtr tox, int friendnumber, byte[] buf, Sys.UInt32 maxlen);
+		private static extern int tox_get_status_message(Sys.IntPtr tox, int friendnumber, byte[] buf, Sys.UInt32 maxlen);
 
 		protected void ToxFriendInitInternal(byte[] name, byte[] state, int i)
 		{
@@ -580,7 +580,7 @@ namespace ToxSharpBasic
 			Sys.UInt32 lenwithzero =(Sys.UInt32)tox_get_status_message_size(tox, i);
 			if (state.Length < lenwithzero)
 				state = new byte[lenwithzero];
-			tox_copy_statusmessage(tox, i, state, lenwithzero);
+			tox_get_status_message(tox, i, state, lenwithzero);
 
 			if (cbfriend != null)
 			{
@@ -1137,7 +1137,7 @@ namespace ToxSharpBasic
 		protected CallBackDelegateFriendAction cbfriendaction;
 
 		[SRIOp.DllImport("toxcore", CallingConvention = SRIOp.CallingConvention.Cdecl)]
-		private static extern void tox_callback_action(Sys.IntPtr tox, CallBackDelegateFriendAction cbfriendaction, Sys.IntPtr X);
+		private static extern void tox_callback_friend_action(Sys.IntPtr tox, CallBackDelegateFriendAction cbfriendaction, Sys.IntPtr X);
 
 		protected void ToxCallbackFriendAction(Sys.IntPtr tox, int id, byte[] action, Sys.UInt16 length, Sys.IntPtr X)
 		{
@@ -1289,7 +1289,7 @@ namespace ToxSharpBasic
 
 
 			cbfriendaction = new CallBackDelegateFriendAction(ToxCallbackFriendAction);
-			tox_callback_action(tox, cbfriendaction, Sys.IntPtr.Zero);
+			tox_callback_friend_action(tox, cbfriendaction, Sys.IntPtr.Zero);
 
 
 			cbfriendname = new CallBackDelegateFriendName(ToxCallbackFriendName);
